@@ -73,9 +73,11 @@ Audio currently uses Three.js's `AudioListener` and browser Web Audio for a synt
 | Browser build/dev server | Vite | Local development and production build |
 | 3D rendering / scene / lights / model loading | Three.js | Renderer, GLTFLoader, PointerLockControls, fog, spotlight and built-in audio listener |
 | Collision and player movement | `@dimforge/rapier3d-compat` | Static world colliders and kinematic character controller |
-| Enemy navigation | Yuka | `Graph`, `Node`, `Edge`, A* pathfinding |
-| Grain / vignette / restrained bloom | `postprocessing` | Effect composer; no real-time shadow maps |
+| Enemy navigation | Yuka | `Graph`, `Node`, `Edge`, breadth-first pathfinding over the uniform-cost grid |
+| Grain / vignette | CSS overlay | Low-cost film grain/vignette; full-screen effects are disabled in the default renderer |
 | Audio lifecycle/spatial audio base | Three.js `AudioListener` + browser Web Audio | Low-cost ambient layer and local effect tones |
+
+The default renderer uses direct Three.js rendering plus the CSS grain/vignette overlays. Full-screen post-processing was disabled after automated Chromium testing exposed severe frame stalls under the headless software renderer. Walls, trims, floors and ceilings are merged to keep draw calls low.
 
 Custom code is restricted to the hospital layout, clue/key/exit rules, stalker senses/state transitions, UI, and game pacing. Environment set dressing that is not an imported model is currently low-poly geometry authored for this specific layout; see the validation report for the asset limitation.
 
