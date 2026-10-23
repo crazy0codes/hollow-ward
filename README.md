@@ -42,7 +42,7 @@ The flashlight begins at 100%. It drains only when switched on, flickers at low 
 
 - **Three.js** — WebGL scene, first-person controls, lights/fog, GLTF loading and audio listener.
 - **Rapier** — kinematic player controller and static collision geometry.
-- **Yuka** — A* routing over the authored walkable-cell graph.
+- **Yuka** — breadth-first routing over the authored walkable-cell graph.
 - **CSS overlays** — film grain and vignette; full-screen post-processing is intentionally disabled in the default render path to keep movement responsive.
 - **Vite** — dev server and production bundling.
 
