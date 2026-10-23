@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#08090b" />
+    <meta name="description" content="Hollow Ward — a first-person 3D survival horror game." />
+    <title>Hollow Ward</title>
+  </head>
+  <body>
+    <div id="game-root">
+      <canvas id="game-canvas" aria-label="Hollow Ward 3D game view"></canvas>
+      <div id="film-grain" aria-hidden="true"></div>
+      <div id="vignette" aria-hidden="true"></div>
+      <section id="title-screen" class="screen screen-visible">
+        <div class="eyebrow">NIGHT SHIFT // 02:17 AM</div>
+        <h1>HOLLOW<br /><span>WARD</span></h1>
+        <p class="subtitle">THE BUILDING DOESN'T WANT YOU TO LEAVE.</p>
+        <div class="story-card">
+          <p>You wake beneath a dead monitor in St. Agnes Hospital. The power is failing. Three wards still hold their security keys.</p>
+          <p>Something has been walking the corridors since the staff disappeared.</p>
+        </div>
+        <button id="start-button" class="primary-button">ENTER THE WARD <span>↗</span></button>
+        <div class="menu-footer">WASD MOVE <i>•</i> MOUSE LOOK <i>•</i> SHIFT RUN <i>•</i> F FLASHLIGHT <i>•</i> E INTERACT</div>
+      </section>
+      <section id="pause-screen" class="screen hidden">
+        <div class="eyebrow">SIGNAL INTERRUPTED</div>
+        <h2>PAUSED</h2>
+        <p>The ward is waiting.</p>
+        <button id="resume-button" class="primary-button">RETURN TO THE WARD</button>
+        <button id="restart-button" class="quiet-button">RESTART NIGHT SHIFT</button>
+      </section>
+      <section id="end-screen" class="screen hidden">
+        <div class="eyebrow" id="end-eyebrow">ST. AGNES // INCIDENT REPORT</div>
+        <h2 id="end-title">YOU GOT OUT</h2>
+        <p id="end-copy"></p>
+        <button id="play-again-button" class="primary-button">PLAY AGAIN</button>
+      </section>
+      <div id="hud" class="hidden" aria-live="polite">
+        <div class="hud-top">
+          <div class="objective"><span class="hud-label">OBJECTIVE</span><strong id="objective-text">Find the three ward keys</strong><div class="objective-progress" id="key-pips"><i></i><i></i><i></i></div></div>
+          <div class="battery"><span class="hud-label">FLASHLIGHT</span><strong id="battery-number">100%</strong><div class="battery-track"><div id="battery-fill"></div></div></div>
+        </div>
+        <div id="crosshair"><i></i><b></b></div>
+        <div id="interaction-prompt" class="hidden"><kbd>E</kbd><span id="interaction-text">Pick up the key</span></div>
+        <div id="message" class="message hidden"></div>
+        <div id="threat-indicator" class="threat-indicator"><span></span> YOU ARE NOT ALONE</div>
+        <div class="hud-bottom"><span id="location-label">ST. AGNES / RECOVERY WING</span><span>F FLASHLIGHT <i>•</i> E INTERACT <i>•</i> ESC PAUSE</span></div>
+      </div>
+      <div id="loading-screen" class="screen hidden"><div class="loading-mark">HW</div><p>OPENING THE WARD</p><div class="loading-bar"><span></span></div></div>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
