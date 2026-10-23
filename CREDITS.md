@@ -8,14 +8,14 @@
 - Upstream project/model notes: <https://github.com/mrdoob/three.js/blob/dev/examples/models/gltf/RobotExpressive/README.md>
 - Model by Tomás Laulhé; modifications by Don McCurdy as described in the upstream README.
 - Licence: CC0 1.0 Universal, per upstream README.
-- Fetched locally in this session: **No** (external DNS unavailable). `scripts/fetch-assets.mjs` downloads the pinned file and verifies SHA-256 `047f5e5fb3bb6d378bd1df16ca6137f2a596c99b3a1b5690b4020c05aaf6f319` when online.
+- Download status: fetched and SHA-256-verified on the hosted GitHub Actions runner during the production build (453.1 KiB). The binary is not committed; `scripts/fetch-assets.mjs` downloads the pinned file and verifies SHA-256 `047f5e5fb3bb6d378bd1df16ca6137f2a596c99b3a1b5690b4020c05aaf6f319` on first run.
 
 ### Corridor floor tile
 
 - Direct file: <https://cdn.3dassets.dev/assets/23660/v1/model.glb>
 - Asset page: <https://3dassets.dev/assets/hospital-wards-and-clinic-operations-corridor-floor-ti-6eaa09ac>
 - Licence: CC0 1.0 Universal, as stated on the asset page.
-- Fetched locally in this session: **No** (external DNS unavailable). `scripts/fetch-assets.mjs` downloads and checks GLB header/size when online.
+- Download status: failed on the hosted GitHub Actions runner with a fetch error from the configured URL. The game treats it as optional; the URL should be repaired before relying on this asset.
 
 ## Audio
 
