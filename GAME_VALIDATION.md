@@ -14,7 +14,7 @@ Role: senior 3D-game release review. Scope: feasibility, external asset provenan
 ## Changes made after review
 
 - Kept the game to one cell-based floor plan and one hunter; avoided a custom engine and a runtime navmesh bake.
-- Used Three.js `PointerLockControls`, `GLTFLoader`, `AudioListener`, and the official `BufferGeometryUtils.mergeGeometries` addon; used Rapier's character-controller API and Yuka A* over a small authored grid.
+- Used Three.js `PointerLockControls`, `GLTFLoader`, `AudioListener`, and the official `BufferGeometryUtils.mergeGeometries` addon; used Rapier's character-controller API and Yuka BFS over a small authored grid.
 - Batched floor and ceiling geometry; disabled real-time shadow maps; capped device pixel ratio at 1.5; used seven restrained point lights with local flicker rather than many shadowed lights.
 - Cached structural wall meshes for line-of-sight tests rather than traversing the full scene on every frame.
 - Fixed the horizontal right-vector sign so `D` moves right. Corrected the east-ward map cell so the second key and stalker spawn are on walkable floor.
