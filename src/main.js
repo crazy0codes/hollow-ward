@@ -185,8 +185,10 @@ function nearestNode(pos) {
 function findPath(from,to) {
   const a=nearestNode(from), b=nearestNode(to);
   if(a===b) return [cellPos(Math.floor(a/COLS),a%COLS)];
-  const astar=new YUKA.AStar(navGraph,a,b); astar.heuristic=YUKA.HeuristicPolicyDijkstra; astar.search();
-  return astar.getPath().map(id=>cellPos(Math.floor(id/COLS),id%COLS));
+  // Every corridor edge has equal cost; Yuka's BFS finds a shortest path without a heuristic.
+  const search=new YUKA.BFS(navGraph,a,b); search.search();
+  const path=search.getPath();
+  return path.map(id=>cellPos(Math.floor(id/COLS),id%COLS));
 }
 function createHunterFallback() {
   enemyFallback = true;
