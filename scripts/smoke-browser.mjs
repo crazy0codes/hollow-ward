@@ -48,21 +48,23 @@ try {
   const before = await page.evaluate(() => window.__HOLLOW_WARD__.playerPosition);
   await page.keyboard.down('w');
   await page.waitForTimeout(1200);
+  const forwardSample = await page.evaluate(() => ({ pos: window.__HOLLOW_WARD__.playerPosition, keys: window.__HOLLOW_WARD__.inputKeys, desired: window.__HOLLOW_WARD__.desiredMovement, actual: window.__HOLLOW_WARD__.actualMovement, locked: window.__HOLLOW_WARD__.pointerLocked, facing: window.__HOLLOW_WARD__.facing, collisions: window.__HOLLOW_WARD__.collisions }));
   await page.keyboard.up('w');
   await page.waitForTimeout(150);
   const afterForward = await page.evaluate(() => window.__HOLLOW_WARD__.playerPosition);
   const forwardDistance = Math.hypot(afterForward.x - before.x, afterForward.z - before.z);
   if (forwardDistance < 0.5) {
-    throw new Error('WASD movement failed: before=' + JSON.stringify(before) + ', after=' + JSON.stringify(afterForward) + ', pageErrors=' + JSON.stringify(pageErrors));
+    throw new Error('WASD movement failed: before=' + JSON.stringify(before) + ', after=' + JSON.stringify(afterForward) + ', sample=' + JSON.stringify(forwardSample) + ', pageErrors=' + JSON.stringify(pageErrors));
   }
 
   await page.keyboard.down('d');
   await page.waitForTimeout(900);
+  const rightSample = await page.evaluate(() => ({ pos: window.__HOLLOW_WARD__.playerPosition, keys: window.__HOLLOW_WARD__.inputKeys, desired: window.__HOLLOW_WARD__.desiredMovement, actual: window.__HOLLOW_WARD__.actualMovement, locked: window.__HOLLOW_WARD__.pointerLocked, facing: window.__HOLLOW_WARD__.facing, collisions: window.__HOLLOW_WARD__.collisions }));
   await page.keyboard.up('d');
   const afterRight = await page.evaluate(() => window.__HOLLOW_WARD__.playerPosition);
   const rightDistance = Math.abs(afterRight.x - afterForward.x);
   if (rightDistance < 0.35) {
-    throw new Error('Right movement failed: before=' + JSON.stringify(afterForward) + ', after=' + JSON.stringify(afterRight) + ', pageErrors=' + JSON.stringify(pageErrors));
+    throw new Error('Right movement failed: before=' + JSON.stringify(afterForward) + ', after=' + JSON.stringify(afterRight) + ', sample=' + JSON.stringify(rightSample) + ', forwardSample=' + JSON.stringify(forwardSample) + ', pageErrors=' + JSON.stringify(pageErrors));
   }
   if (pageErrors.length) throw new Error('Browser runtime errors: ' + pageErrors.join('\n'));
 
