@@ -124,7 +124,7 @@ function buildCurtains() {
     const length = axis === 'x' ? 2.1 : 2.65;
     box(length,.045,.045,M.metal,new THREE.Vector3(0,2.25,0),bar);
     const curtain = new THREE.Mesh(new THREE.PlaneGeometry(length,2.05,7,1),fabric); curtain.position.set(0,1.18,0); curtain.rotation.y = axis === 'x' ? Math.PI/2 : 0; bar.add(curtain);
-    for (let i=0;i<7;i++) cylinder(.027,.027,.08,M.metal,new THREE.Vector3(-length/2+i*length/6,2.2,0),bar,6);
+    for (let i=0;i<7;i++) cylinder(.027,.027,M.metal,new THREE.Vector3(-length/2+i*length/6,2.2,0),bar,6);
   }
 }
 function buildExit() {
