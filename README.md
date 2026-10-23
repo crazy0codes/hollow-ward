@@ -43,10 +43,10 @@ The flashlight begins at 100%. It drains only when switched on, flickers at low 
 - **Three.js** — WebGL scene, first-person controls, lights/fog, GLTF loading and audio listener.
 - **Rapier** — kinematic player controller and static collision geometry.
 - **Yuka** — A* routing over the authored walkable-cell graph.
-- **postprocessing** — low-intensity bloom, noise and vignette.
+- **CSS overlays** — film grain and vignette; full-screen post-processing is intentionally disabled in the default render path to keep movement responsive.
 - **Vite** — dev server and production bundling.
 
-The game is one scene with low draw-call count, no real-time shadow maps, seven local lamps, fog and a pixel-ratio cap. Enemy decision logic, level layout, keys, story and exit rules are game-specific code.
+The game is one scene with merged wall/floor/ceiling meshes, no real-time shadow maps, seven local lamps, fog, CSS grain/vignette, and a pixel-ratio cap. Direct rendering is enabled by default for responsiveness. Enemy decision logic, level layout, keys, story and exit rules are game-specific code.
 
 ## Asset downloads and licences
 
@@ -54,7 +54,7 @@ See [`CREDITS.md`](./CREDITS.md) for full provenance. `scripts/fetch-assets.mjs`
 
 ## Validation status — read before treating this as shipped
 
-**Verified on GitHub Actions:** dependency installation, `npm run check` (JavaScript syntax plus map connectivity), and the Vite production build all passed. The CI run also fetched and hash-verified the CC0 stalker GLB; the corridor floor tile download failed and is optional. See [the successful workflow run](https://github.com/crazy0codes/hollow-ward/actions/runs/39910209099). **Not verified:** Chromium/WebGL gameplay, the browser console, pointer lock, collisions under live play, or a complete win/lose/restart session. Do not call this release-tested until those browser checks pass; the detailed checklist is in [`GAME_VALIDATION.md`](./GAME_VALIDATION.md).
+**Verified on GitHub Actions:** dependency installation, `npm run check`, the Vite production build, and an automated Chromium smoke test all pass. The browser test starts a run and confirms the player position changes while holding **W** and **D**, with no captured page errors. It moved 1.53 units forward in 1.2 seconds and 0.92 units right in 0.9 seconds in the headless test environment. The CC0 stalker GLB was fetched and hash-verified; the optional corridor floor tile URL failed. See [the successful browser test](https://github.com/crazy0codes/hollow-ward/actions/runs/39912075858). **Still unverified:** a full 10–15 minute playthrough, win/lose/restart loop, and the live Netlify deployment's exact deployed commit. See [`GAME_VALIDATION.md`](./GAME_VALIDATION.md).
 
 ## Files
 
