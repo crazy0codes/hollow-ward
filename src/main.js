@@ -36,7 +36,7 @@ const M = {
 let scene, camera, renderer, composer, controls, world, kcc, playerBody, playerCollider, navGraph;
 let flashlight, flashlightTarget, flashlightOn = true, battery = 100, exitDoor, exitPivot, exitCollider, exitOpen = false;
 let enemyGroup, enemyModel, enemyLight, enemyMixer, enemyClips = {}, enemyFallback = false;
-let keys = [], interactive = [], wallVisuals = [], lamps = [], nearestInteractable = null;
+let keys = [], interactive = [], wallVisuals = [], lamps = [], nearestInteractable = null, wallParts = [], trimParts = [];
 let state = 'menu', elapsed = 0, messageTimer = 0, threat = 0, verticalSpeed = 0, bob = 0, footstep = 0, initializationError = null;
 let lastDesired = { x: 0, y: 0, z: 0 }, lastActual = { x: 0, y: 0, z: 0 };
 let enemyMode = 'LURK', enemyPath = [], enemyPathIndex = 0, patrolTarget = null, pathClock = 0, searchClock = 0;
@@ -64,9 +64,13 @@ function cylinder(radius, height, material, pos, parent = scene, segments = 10) 
   mesh.position.copy(pos); mesh.castShadow = false; parent.add(mesh); return mesh;
 }
 function addWall(w, d, pos) {
-  const wall = box(w, WALL_H, d, M.wall, new THREE.Vector3(pos.x, WALL_H / 2, pos.z));
-  wallVisuals.push(wall);
-  box(w, 0.13, d + 0.035, M.darkWall, new THREE.Vector3(pos.x, 0.11, pos.z));
+  // Batch static wall visuals to keep the level's draw-call count low.
+  const wallGeometry = new THREE.BoxGeometry(w, WALL_H, d);
+  wallGeometry.translate(pos.x, WALL_H / 2, pos.z);
+  wallParts.push(wallGeometry);
+  const trimGeometry = new THREE.BoxGeometry(w, 0.13, d + 0.035);
+  trimGeometry.translate(pos.x, 0.11, pos.z);
+  trimParts.push(trimGeometry);
   fixedBox(w, WALL_H, d, new THREE.Vector3(pos.x, WALL_H / 2, pos.z));
 }
 function addLamp(row, col, power) {
@@ -88,6 +92,9 @@ function drawHospital() {
     if (!openCell(r - 1, c) && !(r === 0 && c === EXIT_COL)) addWall(CELL, WALL_T, new THREE.Vector3(p.x, 0, p.z - CELL / 2));
     if (!openCell(r + 1, c)) addWall(CELL, WALL_T, new THREE.Vector3(p.x, 0, p.z + CELL / 2));
   }
+  const wallMesh = new THREE.Mesh(mergeGeometries(wallParts, false), M.wall);
+  scene.add(wallMesh); wallVisuals.push(wallMesh);
+  scene.add(new THREE.Mesh(mergeGeometries(trimParts, false), M.darkWall));
   scene.add(new THREE.Mesh(mergeGeometries(floorParts, false), M.floor));
   scene.add(new THREE.Mesh(mergeGeometries(ceilingParts, false), M.ceiling));
   for (const [r, c, power] of [[1,2,.72],[1,7,.45],[3,5,.6],[5,3,.65],[5,7,.4],[8,2,.35],[8,7,.52]]) addLamp(r, c, power);
@@ -250,7 +257,7 @@ async function loadOptionalAssets() {
 }
 function setupRenderer() {
   renderer = new THREE.WebGLRenderer({canvas:$('game-canvas'),antialias:false,powerPreference:'high-performance',stencil:false});
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.5)); renderer.setSize(innerWidth,innerHeight,false);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.25)); renderer.setSize(innerWidth,innerHeight,false);
   renderer.outputColorSpace=THREE.SRGBColorSpace; renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=.84;
   scene = new THREE.Scene(); scene.background=new THREE.Color(0x030406); scene.fog=new THREE.FogExp2(0x080a0d,.0175);
   camera = new THREE.PerspectiveCamera(74,innerWidth/innerHeight,.05,90); camera.position.set(0,1.45,0); scene.add(camera);
@@ -261,9 +268,8 @@ function setupRenderer() {
   flashlight = new THREE.SpotLight(0xe4efff,62,23,Math.PI/7.2,.42,1.5);
   flashlight.position.set(0,-.04,.05); flashlightTarget=new THREE.Object3D(); flashlightTarget.position.set(0,-.03,-1);
   camera.add(flashlight,flashlightTarget); flashlight.target=flashlightTarget;
-  const bloom=new BloomEffect({intensity:.22,luminanceThreshold:.72,luminanceSmoothing:.12}), noise=new NoiseEffect(); noise.blendMode.opacity.value=.09;
-  const vignette=new VignetteEffect({offset:.22,darkness:.86});
-  composer=new EffectComposer(renderer); composer.addPass(new RenderPass(scene,camera)); composer.addPass(new EffectPass(camera,bloom,noise,vignette));
+  // CSS film grain/vignette preserve atmosphere without an expensive full-screen GPU pipeline.
+  // Keep postprocessing available for future quality tiers; direct rendering is the safe baseline.
   window.addEventListener('resize',onResize);
 }
 function onResize(){if(!camera||!renderer)return;camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight,false);composer?.setSize(innerWidth,innerHeight);}
@@ -445,7 +451,7 @@ if (import.meta.env.DEV || new URLSearchParams(window.location.search).has('smok
   }});
 }
 function animate() {
-  requestAnimationFrame(animate);const dt=Math.min(clock.getDelta(),.04);
+  requestAnimationFrame(animate);const dt=Math.min(clock.getDelta(),.1);
   if(state==='playing'){elapsed+=dt;handleInput(dt);world.timestep=dt;world.step();updateEnemy(dt);flicker(dt);updateDoor(dt);if(audioReady&&audioContext?.state==='suspended')audioContext.resume().catch(()=>{});}
   if(composer)composer.render(dt);else if(renderer&&scene&&camera)renderer.render(scene,camera);
 }
