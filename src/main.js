@@ -38,6 +38,7 @@ let flashlight, flashlightTarget, flashlightOn = true, battery = 100, exitDoor, 
 let enemyGroup, enemyModel, enemyLight, enemyMixer, enemyClips = {}, enemyFallback = false;
 let keys = [], interactive = [], wallVisuals = [], lamps = [], nearestInteractable = null;
 let state = 'menu', elapsed = 0, messageTimer = 0, threat = 0, verticalSpeed = 0, bob = 0, footstep = 0, initializationError = null;
+let lastDesired = { x: 0, y: 0, z: 0 }, lastActual = { x: 0, y: 0, z: 0 };
 let enemyMode = 'LURK', enemyPath = [], enemyPathIndex = 0, patrolTarget = null, pathClock = 0, searchClock = 0;
 let lastKnown = new THREE.Vector3(), audioContext, masterGain, audioReady = false, heartbeatClock = 0;
 const moveKeys = new Set(), clock = new THREE.Clock(), raycaster = new THREE.Raycaster();
@@ -359,7 +360,9 @@ function handleInput(dt) {
   move.set(0,0,0);if(z)move.addScaledVector(forward,z);if(x)move.addScaledVector(right,x);if(move.lengthSq()>1)move.normalize();
   const current=playerBody.translation();verticalSpeed-=15.5*dt;if(current.y<.89&&verticalSpeed<0)verticalSpeed=0;
   const desired={x:move.x*speed*dt,y:verticalSpeed*dt,z:move.z*speed*dt};
+  lastDesired = { x: desired.x, y: desired.y, z: desired.z };
   kcc.computeColliderMovement(playerCollider,desired);const actual=kcc.computedMovement();
+  lastActual = { x: actual.x, y: actual.y, z: actual.z };
   playerBody.setNextKinematicTranslation({x:current.x+actual.x,y:Math.max(.88,current.y+actual.y),z:current.z+actual.z});
   const moving=move.lengthSq()>.01;
   if(moving){bob+=dt*(running?13:8);footstep+=dt;if(footstep>(running?.34:.5)){footstep=0;cue('step',running?.11:.06);}if(running&&Math.random()<dt*.12)lastKnown.set(current.x,0,current.z);}
@@ -433,6 +436,12 @@ if (import.meta.env.DEV || new URLSearchParams(window.location.search).has('smok
     get state() { return state; },
     get error() { return initializationError; },
     get playerPosition() { if (!playerBody) return null; const p = playerBody.translation(); return { x: p.x, y: p.y, z: p.z }; },
+    get inputKeys() { return Array.from(moveKeys); },
+    get desiredMovement() { return { ...lastDesired }; },
+    get actualMovement() { return { ...lastActual }; },
+    get pointerLocked() { return Boolean(controls?.isLocked); },
+    get collisions() { if (!kcc) return 0; return kcc.numComputedCollisions(); },
+    get facing() { if (!camera) return null; return camera.getWorldDirection(new THREE.Vector3()).toArray(); },
   }});
 }
 function animate() {
