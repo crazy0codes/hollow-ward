@@ -163,7 +163,7 @@ function buildKeys() {
     box(.07,.11,.07,M.key,new THREE.Vector3(.04,-.02,0),group);
     const glow = new THREE.PointLight(0xcda24b,.5,2.2,2); glow.position.y=.12; group.add(glow);
     group.userData = { targetType:'key', keyIndex:i, name:s.name, note:s.note, collected:false };
-    keys.push; interactive.push(group); return group;
+    interactive.push(group); return group;
   });
   return keys;
 }
@@ -219,6 +219,31 @@ async function loadOptionalAssets() {
   if(!enemyGroup){enemyGroup=new THREE.Group();createHunterFallback();enemyGroup.add(enemyModel);}
   enemyLight = new THREE.PointLight(0xb00b1b,.75,3,2); enemyLight.position.set(0,1.5,.14); enemyGroup.add(enemyLight); scene.add(enemyGroup);
   enemyGroup.position.copy(cellPos(2,8));
+  // Add the licensed CC0 tile as a small, optional dressing piece if its first-run download succeeded.
+  try {
+    const tileUrl = '/assets/corridor-floor-tile.glb';
+    const tileResponse = await fetch(tileUrl, { method: 'HEAD' });
+    if (tileResponse.ok) {
+      const tileGltf = await loader.loadAsync(tileUrl);
+      const tile = tileGltf.scene;
+      tile.traverse((node) => {
+        if (!node.isMesh) return;
+        node.castShadow = false; node.receiveShadow = false;
+        const shade = (material) => {
+          const copy = material.clone();
+          if (copy.color) copy.color.multiplyScalar(0.3);
+          if ('roughness' in copy) copy.roughness = 0.96;
+          return copy;
+        };
+        node.material = Array.isArray(node.material) ? node.material.map(shade) : shade(node.material);
+      });
+      const p = cellPos(9, 5);
+      tile.scale.setScalar(CELL / 2);
+      tile.position.set(p.x, -0.005, p.z);
+      tile.rotation.y = Math.PI / 2;
+      scene.add(tile);
+    }
+  } catch { /* Optional asset: missing or malformed tile never blocks startup. */ }
 }
 function setupRenderer() {
   renderer = new THREE.WebGLRenderer({canvas:$('game-canvas'),antialias:false,powerPreference:'high-performance',stencil:false});
