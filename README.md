@@ -11,7 +11,7 @@ npm install
 npm run dev
 ```
 
-Open the local URL Vite prints (normally `http://localhost:5173`). `npm run dev` attempts to download the two licensed GLB models into `public/assets/` before the server starts. `npm run build` does the same before production compilation. Asset fetch failures are reported as warnings and the game has a fallback for a missing stalker model.
+Open the local URL Vite prints (normally `http://localhost:5173`). `npm run dev` attempts to download the licensed GLB models into `public/assets/` before the server starts. `npm run build` does the same before production compilation. The animated CC0 stalker model was fetched and hash-verified during the hosted CI build. The corridor tile URL failed in that run, so it remains optional and unavailable unless its source URL is repaired. Missing models do not block startup.
 
 Useful commands:
 
@@ -54,7 +54,7 @@ See [`CREDITS.md`](./CREDITS.md) for full provenance. `scripts/fetch-assets.mjs`
 
 ## Validation status — read before treating this as shipped
 
-This source was generated in a runtime where terminal DNS/network access was unavailable and npm modules were not preinstalled. JavaScript syntax checks pass, but dependency installation, the production build, local model download, Chromium/WebGL playtest, console-error check, and full win/lose/restart test could not be completed in this session. Do not treat the game as release-tested until you complete the steps in [`GAME_VALIDATION.md`](./GAME_VALIDATION.md) on a connected machine.
+**Verified on GitHub Actions:** dependency installation, `npm run check` (JavaScript syntax plus map connectivity), and the Vite production build all passed. The CI run also fetched and hash-verified the CC0 stalker GLB; the corridor floor tile download failed and is optional. See [the successful workflow run](https://github.com/crazy0codes/hollow-ward/actions/runs/39910209099). **Not verified:** Chromium/WebGL gameplay, the browser console, pointer lock, collisions under live play, or a complete win/lose/restart session. Do not call this release-tested until those browser checks pass; the detailed checklist is in [`GAME_VALIDATION.md`](./GAME_VALIDATION.md).
 
 ## Files
 
