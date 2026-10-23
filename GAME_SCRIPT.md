@@ -48,7 +48,7 @@ One persistent hunter uses four gameplay states:
 - **Search:** after losing line of sight, move toward the last-known player location and search briefly.
 - **Reset to Lurk:** return to patrol after the search expires or the last-known location is reached.
 
-The state machine and target-selection are game-specific code. Yuka provides the grid graph/A* path search. Walls block the visual ray. Running is intentionally not a safe default: it travels faster but gives the stalker an easier cue. A close stalker can be slowed briefly by facing it with the working flashlight; light does not kill it. Contact ends the run. Staying around corners and breaking line of sight is the escape tactic.
+The state machine and target-selection are game-specific code. Yuka provides the grid graph and BFS path search. All grid edges have uniform cost, so BFS returns shortest routes without a heuristic. Walls block the visual ray. Running is intentionally not a safe default: it travels faster but gives the stalker an easier cue. A close stalker can be slowed briefly by facing it with the working flashlight; light does not kill it. Contact ends the run. Staying around corners and breaking line of sight is the escape tactic.
 
 ## Scare and pacing plan
 
