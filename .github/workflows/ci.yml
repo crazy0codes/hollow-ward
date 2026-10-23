@@ -25,3 +25,7 @@ jobs:
         run: npm run check
       - name: Build production bundle
         run: npm run build
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Test game movement in Chromium
+        run: npm run test:browser
