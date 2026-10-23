@@ -1,0 +1,23 @@
+{
+  "name": "hollow-ward",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "predev": "node scripts/fetch-assets.mjs",
+    "dev": "vite --host 0.0.0.0",
+    "prebuild": "node scripts/fetch-assets.mjs",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "check": "node --check src/main.js && node --check scripts/fetch-assets.mjs && node --check scripts/check-level.mjs && node scripts/check-level.mjs"
+  },
+  "dependencies": {
+    "@dimforge/rapier3d-compat": "0.21.0",
+    "postprocessing": "6.39.5",
+    "three": "0.186.1",
+    "yuka": "0.7.8"
+  },
+  "devDependencies": {
+    "vite": "8.3.4"
+  }
+}
