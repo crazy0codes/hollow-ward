@@ -37,7 +37,7 @@ let scene, camera, renderer, composer, controls, world, kcc, playerBody, playerC
 let flashlight, flashlightTarget, flashlightOn = true, battery = 100, exitDoor, exitPivot, exitCollider, exitOpen = false;
 let enemyGroup, enemyModel, enemyLight, enemyMixer, enemyClips = {}, enemyFallback = false;
 let keys = [], interactive = [], wallVisuals = [], lamps = [], nearestInteractable = null;
-let state = 'menu', elapsed = 0, messageTimer = 0, threat = 0, verticalSpeed = 0, bob = 0, footstep = 0;
+let state = 'menu', elapsed = 0, messageTimer = 0, threat = 0, verticalSpeed = 0, bob = 0, footstep = 0, initializationError = null;
 let enemyMode = 'LURK', enemyPath = [], enemyPathIndex = 0, patrolTarget = null, pathClock = 0, searchClock = 0;
 let lastKnown = new THREE.Vector3(), audioContext, masterGain, audioReady = false, heartbeatClock = 0;
 const moveKeys = new Set(), clock = new THREE.Clock(), raycaster = new THREE.Raycaster();
@@ -424,7 +424,15 @@ $('restart-button').addEventListener('click',()=>startRun());
 $('play-again-button').addEventListener('click',()=>startRun());
 document.addEventListener('keydown',e=>{if(['KeyW','KeyA','KeyS','KeyD','ShiftLeft','ShiftRight'].includes(e.code))moveKeys.add(e.code);if(e.code==='KeyF'&&!e.repeat)toggleFlashlight();if(e.code==='KeyE'&&!e.repeat&&state==='playing')interact(nearestInteractable);if(e.code==='Escape'&&state==='playing'&&!controls?.isLocked)pauseRun();});
 document.addEventListener('keyup',e=>moveKeys.delete(e.code));
-initialise().catch(error=>{console.error('Hollow Ward initialisation failed.',error);$('loading-screen').classList.add('hidden');$('title-screen').classList.remove('hidden');const card=document.querySelector('.story-card');if(card)card.insertAdjacentHTML('beforeend','<p style="color:#d56b70">Initialisation failed. Check WebGL support and run npm install before starting the game.</p>');});
+initialise().catch(error=>{initializationError=error?.stack||String(error);console.error('Hollow Ward initialisation failed.',error);$('loading-screen').classList.add('hidden');$('title-screen').classList.remove('hidden');const card=document.querySelector('.story-card');if(card)card.insertAdjacentHTML('beforeend','<p style="color:#d56b70">Initialisation failed. Check WebGL support and run npm install before starting the game.</p>');});
+if (import.meta.env.DEV || new URLSearchParams(window.location.search).has('smokeTest')) {
+  Object.defineProperty(window, '__HOLLOW_WARD__', { configurable: true, value: {
+    get ready() { return Boolean(scene && world && controls && kcc && enemyGroup); },
+    get state() { return state; },
+    get error() { return initializationError; },
+    get playerPosition() { if (!playerBody) return null; const p = playerBody.translation(); return { x: p.x, y: p.y, z: p.z }; },
+  }});
+}
 function animate() {
   requestAnimationFrame(animate);const dt=Math.min(clock.getDelta(),.04);
   if(state==='playing'){elapsed+=dt;handleInput(dt);world.timestep=dt;world.step();updateEnemy(dt);flicker(dt);updateDoor(dt);if(audioReady&&audioContext?.state==='suspended')audioContext.resume().catch(()=>{});}
