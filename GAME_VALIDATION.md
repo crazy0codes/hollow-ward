@@ -31,7 +31,8 @@ The designed scope is reasonable for a small browser horror game. Dependencies c
 
 - **Source verified online:** RobotExpressive model/readme; its upstream README says CC0 1.0 Universal. The download script pins an upstream commit and a SHA-256.
 - **Source verified online:** 3DAssets.dev corridor tile page gives the direct GLB URL and CC0 1.0 Universal licence.
-- **Binary fetched/loaded in this environment:** **No.** Attempts to fetch from the terminal fail because external hostname resolution is unavailable. The downloader will verify bytes when run on a connected machine; it does not lie about a missing download.
+- **RobotExpressive GLB:** successfully fetched on the GitHub Actions runner (453.1 KiB) and passed the download script's binary-header, size and pinned SHA-256 checks. It is not committed to the repository; first-run setup fetches it again.
+- **Corridor tile GLB:** the configured URL failed during the hosted CI build. It remains optional, and the game continues without it. The URL needs replacing or repairing before counting it as a delivered asset.
 - **Authored geometry remains:** hospital walls, floor base, bed/trolley shapes, key meshes, door and stains are assembled as low-poly Three.js primitives for the game-specific layout. These are not fake “placeholder boxes” standing in for failed GLB loads, but they do not meet the strictest reading of “assets come from the internet.” This is a remaining limitation of the current build.
 - **Audio:** generated short tones/drone through browser Web Audio; no licensed audio file is bundled. Another explicit deviation from the original request.
 
@@ -42,11 +43,11 @@ Expected to be modest for a normal laptop: roughly one merged floor mesh, one me
 ### Verification status
 
 - `npm run check`: passed. This includes syntax checks for the game and both scripts, plus an automated map BFS that verifies all walkable cells, player spawn, three key locations and north exit are connected. It reports 66 walkable cells in an 11×11 layout.
-- Asset download: attempted for both direct URLs; both failed in this network-restricted runtime due host resolution failure. No GLB files are present in this archive.
-- `npm install`: attempted and failed with `EAI_AGAIN` while resolving `registry.npmjs.org`; the node_modules cache is absent.
-- `npm run build`: attempted and failed because `vite` is not installed (`sh: 1: vite: not found`).
+- Original isolated workspace attempts: asset fetches and `npm install` failed because its terminal DNS was unavailable; that environment had no preinstalled Vite, so its local build attempt could not run.
+- Hosted GitHub Actions verification: `npm install`, `npm run check`, and `npm run build` all passed on Node.js 22. The stalker GLB was fetched and hash-verified; the corridor tile URL failed but is optional.
+- No browser/WebGL playtest was run. Passing a production build does not prove the full gameplay loop or a clean browser console.
 - Chromium gameplay, WebGL, pointer-lock, Rapier runtime, A* runtime and complete win/lose/restart: **not tested**.
-- No claim of “zero console errors” or tested 10–15 minute balance is made.
+- No claim of “zero console errors” or tested 10–15 minute balance is made. The successful automated workflow is available at https://github.com/crazy0codes/hollow-ward/actions/runs/39910209099.
 
 ## Release verdict
 
