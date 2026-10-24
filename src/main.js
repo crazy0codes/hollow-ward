@@ -423,23 +423,18 @@ function navigationSegmentClear(a, b) {
   const distance = Math.hypot(dx, dz);
   if (distance < .08) return true;
   const dir = new THREE.Vector3(dx / distance, 0, dz / distance);
-  const side = new THREE.Vector3(-dir.z, 0, dir.x);
   const maxHit = distance - .14;
   if (maxHit <= .06) return true;
-  for (const offset of [-.3, 0, .3]) {
-    const origin = new THREE.Vector3(a.x + side.x * offset, .95, a.z + side.z * offset);
-    navigationRaycaster.set(origin, dir);
-    navigationRaycaster.near = .06;
-    navigationRaycaster.far = maxHit;
-    if (navigationRaycaster.intersectObjects(wallVisuals, false).length) return false;
-  }
-  return true;
+  navigationRaycaster.set(new THREE.Vector3(a.x, .95, a.z), dir);
+  navigationRaycaster.near = .06;
+  navigationRaycaster.far = maxHit;
+  return navigationRaycaster.intersectObjects(wallVisuals, false).length === 0;
 }
 function buildBackroomNavigationGraph() {
   navWorldPoints.clear(); navGridLookup.clear();
   const graph = new YUKA.Graph();
   if (!backroomBounds) return graph;
-  const spacing = 1.1, margin = .9;
+  const spacing = 1.5, margin = .9;
   const minX = backroomBounds.min.x + margin, maxX = backroomBounds.max.x - margin;
   const minZ = backroomBounds.min.z + margin, maxZ = backroomBounds.max.z - margin;
   const columns = Math.floor((maxX - minX) / spacing) + 1;
@@ -946,15 +941,15 @@ async function initialise() {
   $('loading-screen').classList.remove('hidden');
   setupRenderer();await RAPIER.init();setupPhysics();
   backroomLoaded=await loadBackroomEnvironment();
-  navGraph=buildNavigationGraph();
   if(backroomLoaded){
-    playerSpawn=nearestNavigationPoint(new THREE.Vector3(0,0,6));
+    // Find locker sites with a cheap local clearance probe, then build the heavy navigation graph once.
     buildHidingSpots();
     navGraph=buildNavigationGraph();
-    playerSpawn=nearestNavigationPoint(playerSpawn);
+    playerSpawn=nearestNavigationPoint(new THREE.Vector3(0,0,6));
     enemySpawn=nearestNavigationPoint(cellPos(2,8),[playerSpawn],10);
     drawBackroomLighting();
   }else{
+    navGraph=buildNavigationGraph();
     playerSpawn=cellPos(9,5);enemySpawn=cellPos(2,8);drawHospital();
   }
   buildSignalStations();buildReceiverConsole();
