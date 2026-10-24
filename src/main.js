@@ -38,7 +38,7 @@ let flashlight, flashlightTarget, flashlightOn = true, battery = 100, exitDoor, 
 let enemyGroup, enemyModel, enemyLight, enemyMixer, enemyClips = {}, enemyFallback = false, enemyProcedural = false, enemyAssetName = 'procedural hunter';
 let apparitionGroup, apparitionModel, apparitionActive = false, apparitionClock = 0, nextApparitionAt = 32;
 let evidenceItems = [], interactive = [], wallVisuals = [], lamps = [], nearestInteractable = null, wallParts = [], trimParts = [];
-let state = 'menu', elapsed = 0, messageTimer = 0, threat = 0, verticalSpeed = 0, bob = 0, footstep = 0, initializationError = null;
+let state = 'menu', elapsed = 0, messageTimer = 0, threat = 0, verticalSpeed = 0, bob = 0, footstep = 0, initializationError = null, frameCount = 0;
 let lastDesired = { x: 0, y: 0, z: 0 }, lastActual = { x: 0, y: 0, z: 0 };
 let enemyMode = 'LURK', enemyPath = [], enemyPathIndex = 0, patrolTarget = null, pathClock = 0, searchClock = 0;
 let lastKnown = new THREE.Vector3(), audioContext, masterGain, audioReady = false, heartbeatClock = 0;
@@ -578,6 +578,7 @@ initialise().catch(error=>{initializationError=error?.stack||String(error);conso
 if (import.meta.env.DEV || new URLSearchParams(window.location.search).has('smokeTest')) {
   Object.defineProperty(window, '__HOLLOW_WARD__', { configurable: true, value: {
     get ready() { return Boolean(scene && world && controls && kcc && enemyGroup); },
+    get frameCount() { return frameCount; },
     get state() { return state; },
     get error() { return initializationError; },
     get playerPosition() { if (!playerBody) return null; const p = playerBody.translation(); return { x: p.x, y: p.y, z: p.z }; },
@@ -593,7 +594,7 @@ if (import.meta.env.DEV || new URLSearchParams(window.location.search).has('smok
   }});
 }
 function animate() {
-  requestAnimationFrame(animate);const dt=Math.min(clock.getDelta(),.1);
+  requestAnimationFrame(animate);frameCount++;const dt=Math.min(clock.getDelta(),.1);
   if(state==='playing'){elapsed+=dt;handleInput(dt);world.timestep=dt;world.step();updateEnemy(dt);updateApparition(dt);updateEvidenceMotion();flicker(dt);updateDoor(dt);if(audioReady&&audioContext?.state==='suspended')audioContext.resume().catch(()=>{});}
   if(composer)composer.render(dt);else if(renderer&&scene&&camera)renderer.render(scene,camera);
 }
