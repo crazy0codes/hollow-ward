@@ -35,7 +35,8 @@ const M = {
 };
 let scene, camera, renderer, composer, controls, world, kcc, playerBody, playerCollider, navGraph;
 let flashlight, flashlightTarget, flashlightOn = true, battery = 100, exitDoor, exitPivot, exitCollider, exitOpen = false;
-let enemyGroup, enemyModel, enemyLight, enemyMixer, enemyClips = {}, enemyFallback = false;
+let enemyGroup, enemyModel, enemyLight, enemyMixer, enemyClips = {}, enemyFallback = false, enemyProcedural = false, enemyAssetName = 'procedural hunter';
+let apparitionGroup, apparitionModel, apparitionActive = false, apparitionClock = 0, nextApparitionAt = 32;
 let keys = [], interactive = [], wallVisuals = [], lamps = [], nearestInteractable = null, wallParts = [], trimParts = [];
 let state = 'menu', elapsed = 0, messageTimer = 0, threat = 0, verticalSpeed = 0, bob = 0, footstep = 0, initializationError = null;
 let lastDesired = { x: 0, y: 0, z: 0 }, lastActual = { x: 0, y: 0, z: 0 };
@@ -213,21 +214,98 @@ function createHunterFallback() {
 }
 async function loadOptionalAssets() {
   const loader = new GLTFLoader();
-  try {
-    const resp = await fetch('/assets/RobotExpressive.glb',{method:'HEAD'});
-    if (resp.ok) {
-      const gltf = await loader.loadAsync('/assets/RobotExpressive.glb');
-      enemyGroup = new THREE.Group(); enemyModel = gltf.scene;
-      enemyModel.traverse(n=>{ if(n.isMesh){n.castShadow=false;n.receiveShadow=false; const dark=Array.isArray(n.material)?n.material.map(m=>m.clone()):n.material.clone(); if(Array.isArray(dark)){dark.forEach(m=>{if(m.color)m.color.set(0x121114);});n.material=dark;} else {if(dark.color)dark.color.set(0x121114);n.material=dark;} } });
-      enemyModel.updateMatrixWorld(true);
-      const bounds=new THREE.Box3().setFromObject(enemyModel), height=Math.max(.1,bounds.max.y-bounds.min.y);
-      enemyModel.scale.setScalar(1.82/height); enemyModel.position.y=-bounds.min.y*(1.82/height); enemyGroup.add(enemyModel);
-      if(gltf.animations?.length){enemyMixer=new THREE.AnimationMixer(enemyModel); for(const clip of gltf.animations)enemyClips[clip.name.toLowerCase()]=clip;}
-      enemyFallback=false;
+  const tryLoad = async (url) => {
+    try {
+      const response = await fetch(url, { method: 'HEAD' });
+      if (!response.ok) return null;
+      return await loader.loadAsync(url);
+    } catch { return null; }
+  };
+
+  // Prefer the user's animated horror creature, then their rigged character, then the CC0 fallback.
+  let assetUrl = '/assets/the_human_deer.glb';
+  let gltf = await tryLoad(assetUrl);
+  const hasDeer = Boolean(gltf);
+  if (!gltf) {
+    assetUrl = '/assets/Meshy_AI_Character_output.glb';
+    gltf = await tryLoad(assetUrl);
+  }
+  if (!gltf) {
+    assetUrl = '/assets/RobotExpressive.glb';
+    gltf = await tryLoad(assetUrl);
+  }
+
+  if (gltf) {
+    enemyGroup = new THREE.Group();
+    enemyModel = gltf.scene;
+    enemyAssetName = assetUrl.split('/').pop();
+    enemyModel.traverse(node => {
+      if (!node.isMesh) return;
+      node.castShadow = false;
+      node.receiveShadow = false;
+      // Keep user-authored textures/materials. Only darken the generic robot fallback.
+      if (assetUrl.endsWith('RobotExpressive.glb')) {
+        const darken = material => {
+          const copy = material.clone();
+          if (copy.color) copy.color.set(0x121114);
+          return copy;
+        };
+        node.material = Array.isArray(node.material) ? node.material.map(darken) : darken(node.material);
+      }
+    });
+    enemyModel.updateMatrixWorld(true);
+    const bounds = new THREE.Box3().setFromObject(enemyModel);
+    const height = Math.max(.1, bounds.max.y - bounds.min.y);
+    const targetHeight = hasDeer ? 2.35 : 1.82;
+    const scale = targetHeight / height;
+    enemyModel.scale.setScalar(scale);
+    enemyModel.position.y = -bounds.min.y * scale;
+    enemyGroup.add(enemyModel);
+    if (gltf.animations?.length) {
+      enemyMixer = new THREE.AnimationMixer(enemyModel);
+      for (const clip of gltf.animations) enemyClips[clip.name.toLowerCase()] = clip;
+      enemyProcedural = false;
+    } else {
+      // A skinned GLB without clips still gets visible bob, lean, and root motion while moving.
+      enemyProcedural = true;
     }
-  } catch { /* The included procedural hunter remains playable if the download is unavailable. */ }
-  if(!enemyGroup){enemyGroup=new THREE.Group();createHunterFallback();enemyGroup.add(enemyModel);}
-  enemyLight = new THREE.PointLight(0xb00b1b,.75,3,2); enemyLight.position.set(0,1.5,.14); enemyGroup.add(enemyLight); scene.add(enemyGroup);
+    enemyFallback = false;
+  }
+
+  if (!enemyGroup) {
+    enemyGroup = new THREE.Group();
+    createHunterFallback();
+    enemyGroup.add(enemyModel);
+    enemyProcedural = true;
+    enemyAssetName = 'procedural hunter (asset fallback)';
+  }
+
+  // The rigged Meshy character is used as a one-frame apparition. It has no embedded clip,
+  // so the scare is animated by a controlled lunge and scale pulse.
+  if (hasDeer) {
+    const apparitionGltf = await tryLoad('/assets/Meshy_AI_Character_output.glb');
+    if (apparitionGltf) {
+      apparitionGroup = new THREE.Group();
+      apparitionModel = apparitionGltf.scene;
+      apparitionModel.traverse(node => {
+        if (node.isMesh) { node.castShadow = false; node.receiveShadow = false; }
+      });
+      apparitionModel.updateMatrixWorld(true);
+      const bounds = new THREE.Box3().setFromObject(apparitionModel);
+      const height = Math.max(.1, bounds.max.y - bounds.min.y);
+      const scale = 1.82 / height;
+      apparitionModel.scale.setScalar(scale);
+      apparitionModel.position.y = -bounds.min.y * scale;
+      apparitionGroup.add(apparitionModel);
+      apparitionGroup.visible = false;
+      scene.add(apparitionGroup);
+    }
+  }
+
+  enemyLight = new THREE.PointLight(0xb00b1b,.75,3,2);
+  enemyLight.position.set(0,1.5,.14);
+  enemyGroup.add(enemyLight);
+  scene.add(enemyGroup);
   enemyGroup.position.copy(cellPos(2,8));
   // Add the licensed CC0 tile as a small, optional dressing piece if its first-run download succeeded.
   try {
@@ -317,7 +395,7 @@ function updateHud() {
 }
 function startRun() {
   if(!world||!controls)return;
-  state='playing';elapsed=0;battery=100;flashlightOn=true;flashlight.visible=true;exitOpen=false;enemyMode='LURK';threat=0;searchClock=0;pathClock=0;verticalSpeed=0;bob=0;footstep=0;
+  state='playing';elapsed=0;battery=100;flashlightOn=true;flashlight.visible=true;exitOpen=false;enemyMode='LURK';threat=0;searchClock=0;pathClock=0;verticalSpeed=0;bob=0;footstep=0;apparitionActive=false;apparitionClock=0;nextApparitionAt=32;if(apparitionGroup)apparitionGroup.visible=false;
   for(const key of keys){key.userData.collected=false;key.visible=true;key.position.y=.98;}
   if(exitPivot)exitPivot.rotation.y=0;if(!exitCollider)createExitCollider();
   const start=cellPos(9,5);playerBody.setTranslation({x:start.x,y:.88,z:start.z},true);
@@ -391,10 +469,10 @@ function choosePatrol() {
 function moveHunterToward(target,speed,dt) {
   if(!target)return;const offset=target.clone().sub(enemyGroup.position);offset.y=0;const dist=offset.length();
   if(dist<.32){enemyPathIndex++;return;}offset.normalize();enemyGroup.position.addScaledVector(offset,Math.min(dist,speed*dt));enemyGroup.position.y=0;enemyGroup.rotation.y=Math.atan2(-offset.x,-offset.z);
-  if(enemyFallback&&enemyModel){enemyModel.rotation.z=Math.sin(elapsed*9)*.035;enemyModel.position.y=Math.sin(elapsed*7)*.025;}
+  if(enemyProcedural&&enemyModel){enemyModel.rotation.z=Math.sin(elapsed*9)*.045;enemyModel.rotation.x=Math.sin(elapsed*5.2)*.025;enemyModel.position.y=Math.sin(elapsed*7)*.04;}
 }
 function animateEnemyClip(name) {
-  if(!enemyMixer)return;const found=Object.keys(enemyClips).find(n=>n.includes(name))||Object.keys(enemyClips).find(n=>n.includes('idle'));if(!found)return;
+  if(!enemyMixer)return;const found=Object.keys(enemyClips).find(n=>n.includes(name))||Object.keys(enemyClips).find(n=>n.includes('idle'))||Object.keys(enemyClips)[0];if(!found)return;
   const action=enemyMixer.clipAction(enemyClips[found]);if(enemyMixer._activeAction===action)return;const old=enemyMixer._activeAction;if(old)old.fadeOut(.2);action.reset().fadeIn(.2).play();enemyMixer._activeAction=action;
 }
 function updateEnemy(dt) {
@@ -417,8 +495,54 @@ function updateEnemy(dt) {
     moveHunterToward(enemyPath[enemyPathIndex]||lastKnown,1.55,dt);setThreat(Math.max(0,threat-dt*.13));
     if(searchClock>4.3||enemyGroup.position.distanceTo(lastKnown)<1){enemyMode='LURK';patrolTarget=null;pathClock=0;}
   }
-  if(enemyMixer){animateEnemyClip(enemyMode==='CHASE'?'running':enemyMode==='LURK'?'walking':'walking');enemyMixer.update(dt);}
+  if(enemyMixer){animateEnemyClip(enemyMode==='CHASE'?'running':enemyMode==='LURK'?'walking':'walking');enemyMixer.timeScale=enemyMode==='CHASE'?1.42:enemyMode==='SEARCH'?1.08:.78;enemyMixer.update(dt);}
   if(enemyLight)enemyLight.intensity=enemyMode==='CHASE'?1.35:.6;
+}
+function updateApparition(dt) {
+  if (!apparitionGroup || state !== 'playing') return;
+  const player = camera.position.clone();
+  player.y = 0;
+
+  if (!apparitionActive) {
+    if (elapsed < nextApparitionAt || enemyMode === 'CHASE') return;
+    if (enemyGroup && enemyGroup.position.distanceTo(player) < 8) {
+      nextApparitionAt += 2;
+      return;
+    }
+    const forward = new THREE.Vector3();
+    camera.getWorldDirection(forward);
+    forward.y = 0;
+    if (forward.lengthSq() < .01) return;
+    forward.normalize();
+    apparitionGroup.position.copy(player).addScaledVector(forward, 4.15);
+    apparitionGroup.position.y = 0;
+    apparitionGroup.rotation.y = Math.atan2(-forward.x, -forward.z);
+    apparitionGroup.scale.setScalar(.92);
+    apparitionGroup.visible = true;
+    apparitionActive = true;
+    apparitionClock = .72;
+    nextApparitionAt = elapsed + 62 + Math.random() * 23;
+    cue('sting', .9);
+    setThreat(Math.max(threat, .86));
+    return;
+  }
+
+  apparitionClock -= dt;
+  const toPlayer = player.clone().sub(apparitionGroup.position);
+  toPlayer.y = 0;
+  const distance = toPlayer.length();
+  if (distance > .05) {
+    toPlayer.normalize();
+    apparitionGroup.position.addScaledVector(toPlayer, Math.min(distance, 6.6 * dt));
+    apparitionGroup.rotation.y = Math.atan2(-toPlayer.x, -toPlayer.z);
+  }
+  const lungeProgress = THREE.MathUtils.clamp(1 - apparitionClock / .72, 0, 1);
+  apparitionGroup.scale.setScalar(.92 + lungeProgress * .28);
+  if (distance < .82 || apparitionClock <= 0) {
+    apparitionGroup.visible = false;
+    apparitionActive = false;
+    apparitionGroup.scale.setScalar(.92);
+  }
 }
 function flicker(dt) {
   for(const lamp of lamps){lamp.clock+=dt;const broken=Math.sin(lamp.clock*2.7)>.94||Math.sin(lamp.clock*1.4)<-.97;lamp.light.intensity=broken?.08:lamp.base*(.82+Math.sin(lamp.clock*1.8)*.12);lamp.tube.material.emissiveIntensity=broken?.06:.55+lamp.base*.45;}
@@ -448,11 +572,14 @@ if (import.meta.env.DEV || new URLSearchParams(window.location.search).has('smok
     get pointerLocked() { return Boolean(controls?.isLocked); },
     get collisions() { if (!kcc) return 0; return kcc.numComputedCollisions(); },
     get facing() { if (!camera) return null; return camera.getWorldDirection(new THREE.Vector3()).toArray(); },
+    get monsterAsset() { return enemyAssetName; },
+    get monsterHasAnimation() { return Boolean(enemyMixer); },
+    get apparitionVisible() { return Boolean(apparitionGroup?.visible); },
   }});
 }
 function animate() {
   requestAnimationFrame(animate);const dt=Math.min(clock.getDelta(),.1);
-  if(state==='playing'){elapsed+=dt;handleInput(dt);world.timestep=dt;world.step();updateEnemy(dt);flicker(dt);updateDoor(dt);if(audioReady&&audioContext?.state==='suspended')audioContext.resume().catch(()=>{});}
+  if(state==='playing'){elapsed+=dt;handleInput(dt);world.timestep=dt;world.step();updateEnemy(dt);updateApparition(dt);flicker(dt);updateDoor(dt);if(audioReady&&audioContext?.state==='suspended')audioContext.resume().catch(()=>{});}
   if(composer)composer.render(dt);else if(renderer&&scene&&camera)renderer.render(scene,camera);
 }
 animate();
