@@ -726,14 +726,47 @@ function canSeePlayer() {
 }
 function planPath(target){enemyPath=findPath(enemyGroup.position,target);enemyPathIndex=enemyPath.length>1?1:0;}
 function choosePatrol() {
+  if (backroomLoaded && navWorldPoints.size) {
+    const here = enemyGroup.position;
+    const candidates = [...navWorldPoints.values()].filter(point => {
+      const d = Math.hypot(point.x - here.x, point.z - here.z);
+      return d >= 5.5 && d <= 18;
+    });
+    patrolTarget = candidates.length ? candidates[Math.floor(Math.random() * candidates.length)].clone() : null;
+    if (patrolTarget) planPath(patrolTarget);
+    return;
+  }
   const spots=[[1,2],[1,7],[3,5],[5,2],[5,8],[8,7],[3,6],[7,6]].filter(([r,c])=>openCell(r,c));
-  const at=toCell(enemyGroup.position),choices=spots.filter(([r,c])=>r!==at.row||c!==at.col),s=choices[Math.floor(Math.random()*choices.length)]||[5,5];
-  patrolTarget=cellPos(s[0],s[1]);planPath(patrolTarget);
+  const at=toCell(enemyGroup.position),choices=spots.filter(([r,c])=>r!==at.row||c!==at.col),spot=choices[Math.floor(Math.random()*choices.length)]||[5,5];
+  patrolTarget=cellPos(spot[0],spot[1]);planPath(patrolTarget);
+}
+function currentHunterWaypoint(fallbackTarget) {
+  if (backroomLoaded) return enemyPath[enemyPathIndex] || null;
+  return enemyPath[enemyPathIndex] || fallbackTarget;
 }
 function moveHunterToward(target,speed,dt) {
-  if(!target)return;const offset=target.clone().sub(enemyGroup.position);offset.y=0;const dist=offset.length();
-  if(dist<.32){enemyPathIndex++;return;}offset.normalize();enemyGroup.position.addScaledVector(offset,Math.min(dist,speed*dt));enemyGroup.position.y=0;enemyGroup.rotation.y=Math.atan2(-offset.x,-offset.z);
-  if(enemyProcedural&&enemyModel){enemyModel.rotation.z=Math.sin(elapsed*9)*.045;enemyModel.rotation.x=Math.sin(elapsed*5.2)*.025;enemyModel.position.y=Math.sin(elapsed*7)*.04;}
+  if(!target)return;
+  const offset=target.clone().sub(enemyGroup.position);offset.y=0;const dist=offset.length();
+  if(dist<.3){enemyPathIndex++;return;}
+  offset.normalize();
+  const step=Math.min(dist,speed*dt);
+  const candidate=enemyGroup.position.clone().addScaledVector(offset,step);
+  // The route is generated from the imported geometry; guard each short move as well to avoid
+  // the creature clipping through a wall if a thin feature falls between graph samples.
+  if(backroomLoaded && (!navigationSegmentClear(enemyGroup.position,candidate) || !isBackroomPointClear(candidate,.5))) {
+    pathClock=0;
+    return;
+  }
+  enemyGroup.position.copy(candidate);enemyGroup.position.y=0;
+  enemyGroup.rotation.y=Math.atan2(-offset.x,-offset.z);
+  const sprinting=enemyMode==='CHASE';
+  if(enemyModel){
+    enemyModel.rotation.z=Math.sin(elapsed*(sprinting?14:5.2))*(sprinting?.045:.015);
+    if(enemyProcedural){
+      enemyModel.rotation.x=Math.sin(elapsed*(sprinting?11:5.2))*(sprinting?.035:.025);
+      enemyModel.position.y=Math.sin(elapsed*(sprinting?15:7))*(sprinting?.065:.04);
+    }
+  }
 }
 function animateEnemyClip(name) {
   if(!enemyMixer)return;const found=Object.keys(enemyClips).find(n=>n.includes(name))||Object.keys(enemyClips).find(n=>n.includes('idle'))||Object.keys(enemyClips)[0];if(!found)return;
@@ -742,24 +775,24 @@ function animateEnemyClip(name) {
 function updateEnemy(dt) {
   if(!enemyGroup)return;const player=camera.position.clone();player.y=0;const distance=enemyGroup.position.distanceTo(player),sees=canSeePlayer();
   const facing=flashlightOn&&battery>0&&distance<10&&camera.getWorldDirection(direction)&&direction.dot(enemyGroup.position.clone().sub(camera.position).normalize())>.89;
-  if(distance<1.22){endRun(false);return;}
-  if(sees&&(distance<12||(moveKeys.has('ShiftLeft')||moveKeys.has('ShiftRight'))&&distance<17)){if(enemyMode!=='CHASE'){enemyMode='CHASE';cue('sting',.22);showMessage('RUN. IT HAS SEEN YOU.',2.2);}lastKnown.copy(player);searchClock=0;}
+  if(distance<1.22&&!isPlayerHidden){endRun(false);return;}
+  if(!isPlayerHidden&&sees&&(distance<12||(moveKeys.has('ShiftLeft')||moveKeys.has('ShiftRight'))&&distance<17)){if(enemyMode!=='CHASE'){enemyMode='CHASE';cue('sting',.22);showMessage('RUN. IT HAS SEEN YOU.',2.2);}lastKnown.copy(player);searchClock=0;}
   else if(enemyMode==='CHASE'){enemyMode='SEARCH';searchClock=0;planPath(lastKnown);}
   if(facing&&distance<5.2)threat=Math.max(threat,.72);pathClock-=dt;
   if(enemyMode==='LURK'){
     if(!patrolTarget||enemyPathIndex>=enemyPath.length||pathClock<=0){choosePatrol();pathClock=2.4+Math.random()*1.5;}
-    moveHunterToward(enemyPath[enemyPathIndex]||patrolTarget,facing?.72:1.08,dt);
+    moveHunterToward(currentHunterWaypoint(patrolTarget),1.35,dt);
     setThreat(distance<10?Math.max(threat*.98,(10-distance)/15):Math.max(0,threat-dt*.12));
   }else if(enemyMode==='CHASE'){
-    if(pathClock<=0){planPath(player);pathClock=.85;}
-    moveHunterToward(enemyPath[enemyPathIndex]||player,facing?1.25:2.45,dt);setThreat(Math.min(1,threat+dt*.65));
+    if(pathClock<=0){planPath(player);pathClock=.48;}
+    moveHunterToward(currentHunterWaypoint(player),facing?3.15:5.85,dt);setThreat(Math.min(1,threat+dt*.8));
     heartbeatClock+=dt;if(distance<5&&heartbeatClock>1.05){heartbeatClock=0;cue('heartbeat',threat*.17);}
   }else{
-    searchClock+=dt;if(pathClock<=0){planPath(lastKnown);pathClock=1.25;}
-    moveHunterToward(enemyPath[enemyPathIndex]||lastKnown,1.55,dt);setThreat(Math.max(0,threat-dt*.13));
+    searchClock+=dt;if(pathClock<=0){planPath(lastKnown);pathClock=.85;}
+    moveHunterToward(currentHunterWaypoint(lastKnown),2.25,dt);setThreat(Math.max(0,threat-dt*.13));
     if(searchClock>4.3||enemyGroup.position.distanceTo(lastKnown)<1){enemyMode='LURK';patrolTarget=null;pathClock=0;}
   }
-  if(enemyMixer){animateEnemyClip(enemyMode==='CHASE'?'running':enemyMode==='LURK'?'walking':'walking');enemyMixer.timeScale=enemyMode==='CHASE'?1.42:enemyMode==='SEARCH'?1.08:.78;enemyMixer.update(dt);}
+  if(enemyMixer){animateEnemyClip(enemyMode==='CHASE'?'running':enemyMode==='LURK'?'walking':'walking');enemyMixer.timeScale=enemyMode==='CHASE'?2.05:enemyMode==='SEARCH'?1.2:.92;enemyMixer.update(dt);}
   if(enemyLight)enemyLight.intensity=enemyMode==='CHASE'?1.35:.6;
 }
 function updateApparition(dt) {
@@ -890,6 +923,13 @@ if (import.meta.env.DEV || new URLSearchParams(window.location.search).has('smok
     get backroomLoaded() { return backroomLoaded; },
     get finaleActive() { return finaleActive; },
     get relayCount() { return signalStations.filter(item=>item.userData.activated).length; },
+    get enemyPosition() { return enemyGroup ? {x:enemyGroup.position.x,y:enemyGroup.position.y,z:enemyGroup.position.z} : null; },
+    get enemyMode() { return enemyMode; },
+    get hidden() { return isPlayerHidden; },
+    get hidingSpotCount() { return hidingSpots.length; },
+    get navigationNodeCount() { return backroomLoaded ? navWorldPoints.size : walkable.size; },
+    startHunterTestChase() { enemyMode='CHASE';lastKnown.copy(camera.position);planPath(camera.position);pathClock=0;return {mode:enemyMode,pathLength:enemyPath.length}; },
+    advanceHunterForTest(frames=30) { const count=Math.max(1,Math.min(180,Math.floor(frames))),dt=1/60;for(let i=0;i<count;i++){if(state!=='playing')break;updateEnemy(dt);}return this.enemyPosition; },
   }});
 }
 function animate() {
