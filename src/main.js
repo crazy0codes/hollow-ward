@@ -282,10 +282,10 @@ function isBackroomPointClear(position, clearance = 0.56) {
   }
   return true;
 }
-function findSafeEnvironmentPosition(preferred, maxRadius = CELL) {
+function findSafeEnvironmentPosition(preferred, maxRadius = CELL, clearance = 0.56) {
   const base = preferred.clone();
   base.y = 0;
-  if (!backroomLoaded || isBackroomPointClear(base)) return base;
+  if (!backroomLoaded || isBackroomPointClear(base, clearance)) return base;
   // Imported Backrooms geometry is not laid out like the procedural test grid. Find the nearest
   // actual open spot before placing the player, relays, receiver, or hunter.
   const step = 0.7;
@@ -300,7 +300,7 @@ function findSafeEnvironmentPosition(preferred, maxRadius = CELL) {
   candidates.sort((a, b) => a.distanceSq - b.distanceSq);
   for (const candidate of candidates) {
     const point = new THREE.Vector3(base.x + candidate.dx, 0, base.z + candidate.dz);
-    if (isBackroomPointClear(point)) return point;
+    if (isBackroomPointClear(point, clearance)) return point;
   }
   console.warn('No clear Backrooms position found near', base.toArray(), '- using its authored fallback position.');
   return base;
@@ -768,7 +768,7 @@ async function initialise() {
   $('loading-screen').classList.remove('hidden');
   setupRenderer();await RAPIER.init();setupPhysics();
   backroomLoaded=await loadBackroomEnvironment();
-  playerSpawn=findSafeEnvironmentPosition(cellPos(9,5), CELL);
+  playerSpawn=findSafeEnvironmentPosition(cellPos(9,5), CELL * 1.5, 1.8);
   enemySpawn=findSafeEnvironmentPosition(cellPos(2,8), CELL);
   navGraph=buildNavigationGraph();
   if(backroomLoaded)drawBackroomLighting();else drawHospital();
