@@ -36,7 +36,7 @@ const M = {
 let scene, camera, renderer, composer, controls, world, kcc, playerBody, playerCollider, navGraph;
 let flashlight, flashlightTarget, flashlightOn = true, battery = 100, exitDoor, exitPivot, exitCollider, exitOpen = false;
 let enemyGroup, enemyModel, enemyLight, enemyMixer, enemyClips = {}, enemyFallback = false, enemyProcedural = false, enemyAssetName = 'procedural hunter';
-let backroomLoaded = false, backroomGroup = null, houseGroup = null, houseMixer = null, finaleActive = false, finaleClock = 0;
+let backroomLoaded = false, backroomGroup = null, houseGroup = null, houseMixer = null, finaleActive = false, finaleClock = 0, receiverConsole = null;
 let apparitionGroup, apparitionModel, apparitionActive = false, apparitionClock = 0, nextApparitionAt = 32;
 let signalStations = [], interactive = [], wallVisuals = [], lamps = [], nearestInteractable = null, wallParts = [], trimParts = [];
 let state = 'menu', elapsed = 0, messageTimer = 0, threat = 0, verticalSpeed = 0, bob = 0, footstep = 0, initializationError = null, frameCount = 0;
@@ -91,7 +91,7 @@ function drawHospital() {
     if ((r + c) % 4 !== 0) { const cg = new THREE.BoxGeometry(CELL - 0.06, 0.18, CELL - 0.06); cg.translate(p.x, WALL_H + 0.08, p.z); ceilingParts.push(cg); }
     if (!openCell(r, c - 1)) addWall(WALL_T, CELL, new THREE.Vector3(p.x - CELL / 2, 0, p.z));
     if (!openCell(r, c + 1)) addWall(WALL_T, CELL, new THREE.Vector3(p.x + CELL / 2, 0, p.z));
-    if (!openCell(r - 1, c) && !(r === 0 && c === EXIT_COL)) addWall(CELL, WALL_T, new THREE.Vector3(p.x, 0, p.z - CELL / 2));
+    if (!openCell(r - 1, c)) addWall(CELL, WALL_T, new THREE.Vector3(p.x, 0, p.z - CELL / 2));
     if (!openCell(r + 1, c)) addWall(CELL, WALL_T, new THREE.Vector3(p.x, 0, p.z + CELL / 2));
   }
   const wallMesh = new THREE.Mesh(mergeGeometries(wallParts, false), M.wall);
@@ -688,11 +688,14 @@ function updateApparition(dt) {
     apparitionGroup.scale.setScalar(.92);
   }
 }
-function updateEvidenceMotion() {
-  for (const item of signalStations) {
-    if (!item.visible || item.userData.collected) continue;
-    item.position.y = item.userData.homeY + Math.sin(elapsed * 1.7 + item.userData.phase) * .035;
-    item.rotation.y = Math.sin(elapsed * .55 + item.userData.phase) * .12;
+function updateSignalStationMotion() {
+  for (const station of signalStations) {
+    if (!station.visible) continue;
+    const phase = station.userData.phaseOffset || 0;
+    station.userData.orb.rotation.y += .012;
+    station.userData.orb.position.y = 1.38 + Math.sin(elapsed * 1.7 + phase) * .045;
+    station.userData.ring.rotation.z = Math.sin(elapsed * .55 + phase) * .09;
+    if (!station.userData.activated) station.userData.glow.intensity = .18 + (Math.sin(elapsed * 2.2 + phase) + 1) * .035;
   }
 }
 function flicker(dt) {
@@ -755,7 +758,7 @@ if (import.meta.env.DEV || new URLSearchParams(window.location.search).has('smok
 }
 function animate() {
   requestAnimationFrame(animate);frameCount++;const dt=Math.min(clock.getDelta(),.1);
-  if(state==='playing'){elapsed+=dt;if(!finaleActive)handleInput(dt);world.timestep=dt;world.step();if(!finaleActive)updateEnemy(dt);updateApparition(dt);updateEvidenceMotion();flicker(dt);updateDoor(dt);if(audioReady&&audioContext?.state==='suspended')audioContext.resume().catch(()=>{});}
+  if(state==='playing'){elapsed+=dt;if(!finaleActive)handleInput(dt);world.timestep=dt;world.step();if(!finaleActive)updateEnemy(dt);updateApparition(dt);updateSignalStationMotion();flicker(dt);updateDoor(dt);if(audioReady&&audioContext?.state==='suspended')audioContext.resume().catch(()=>{});}
   if(composer)composer.render(dt);else if(renderer&&scene&&camera)renderer.render(scene,camera);
 }
 animate();
