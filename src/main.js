@@ -46,7 +46,6 @@ let lastKnown = new THREE.Vector3(), audioContext, masterGain, audioReady = fals
 const moveKeys = new Set(), clock = new THREE.Clock(), raycaster = new THREE.Raycaster(), clearanceRaycaster = new THREE.Raycaster();
 const clearanceDirections = [
   new THREE.Vector3(1,0,0), new THREE.Vector3(-1,0,0), new THREE.Vector3(0,0,1), new THREE.Vector3(0,0,-1),
-  new THREE.Vector3(1,0,1).normalize(), new THREE.Vector3(1,0,-1).normalize(), new THREE.Vector3(-1,0,1).normalize(), new THREE.Vector3(-1,0,-1).normalize(),
 ];
 const forward = new THREE.Vector3(), right = new THREE.Vector3(), move = new THREE.Vector3(), direction = new THREE.Vector3();
 
@@ -288,7 +287,7 @@ function findSafeEnvironmentPosition(preferred, maxRadius = CELL, clearance = 0.
   if (!backroomLoaded || isBackroomPointClear(base, clearance)) return base;
   // Imported Backrooms geometry is not laid out like the procedural test grid. Find the nearest
   // actual open spot before placing the player, relays, receiver, or hunter.
-  const step = 0.7;
+  const step = 1.0;
   const rings = Math.ceil(maxRadius / step);
   const candidates = [];
   for (let ix = -rings; ix <= rings; ix++) {
@@ -768,7 +767,7 @@ async function initialise() {
   $('loading-screen').classList.remove('hidden');
   setupRenderer();await RAPIER.init();setupPhysics();
   backroomLoaded=await loadBackroomEnvironment();
-  playerSpawn=findSafeEnvironmentPosition(cellPos(9,5), CELL * 1.5, 1.8);
+  playerSpawn=findSafeEnvironmentPosition(cellPos(9,5), CELL, 1.15);
   enemySpawn=findSafeEnvironmentPosition(cellPos(2,8), CELL);
   navGraph=buildNavigationGraph();
   if(backroomLoaded)drawBackroomLighting();else drawHospital();
