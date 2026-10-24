@@ -40,7 +40,7 @@ let backroomLoaded = false, backroomGroup = null, backroomBounds = null, playerS
 let apparitionGroup, apparitionModel, apparitionActive = false, apparitionClock = 0, nextApparitionAt = 32;
 let signalStations = [], hidingSpots = [], interactive = [], wallVisuals = [], lamps = [], nearestInteractable = null, wallParts = [], trimParts = [];
 let isPlayerHidden = false, currentHideSpot = null, restoreFlashlightAfterHide = false;
-let state = 'menu', elapsed = 0, messageTimer = 0, threat = 0, verticalSpeed = 0, bob = 0, footstep = 0, initializationError = null, frameCount = 0;
+let state = 'menu', elapsed = 0, messageTimer = 0, threat = 0, verticalSpeed = 0, bob = 0, footstep = 0, initializationError = null, frameCount = 0, gameReady = false;
 let lastDesired = { x: 0, y: 0, z: 0 }, lastActual = { x: 0, y: 0, z: 0 };
 let enemyMode = 'LURK', enemyPath = [], enemyPathIndex = 0, patrolTarget = null, pathClock = 0, searchClock = 0;
 let lastKnown = new THREE.Vector3(), audioContext, masterGain, audioReady = false, heartbeatClock = 0;
@@ -960,6 +960,7 @@ async function initialise() {
   buildSignalStations();buildReceiverConsole();
   await loadOptionalAssets();
   $('loading-screen').classList.add('hidden');
+  gameReady = true;
 }
 $('start-button').addEventListener('click',()=>startRun());
 $('resume-button').addEventListener('click',()=>resumeRun());
@@ -970,7 +971,7 @@ document.addEventListener('keyup',e=>moveKeys.delete(e.code));
 initialise().catch(error=>{initializationError=error?.stack||String(error);console.error('Hollow Ward initialisation failed.',error);$('loading-screen').classList.add('hidden');$('title-screen').classList.remove('hidden');const card=document.querySelector('.story-card');if(card)card.insertAdjacentHTML('beforeend','<p style="color:#d56b70">Initialisation failed. Check WebGL support and run npm install before starting the game.</p>');});
 if (import.meta.env.DEV || new URLSearchParams(window.location.search).has('smokeTest')) {
   Object.defineProperty(window, '__HOLLOW_WARD__', { configurable: true, value: {
-    get ready() { return Boolean(scene && world && controls && kcc && enemyGroup); },
+    get ready() { return gameReady && Boolean(scene && world && controls && kcc && enemyGroup) && $('loading-screen').classList.contains('hidden'); },
     get frameCount() { return frameCount; },
     stepForTest(frames = 60) {
       const count = Math.max(1, Math.min(300, Math.floor(frames)));
@@ -1006,7 +1007,15 @@ if (import.meta.env.DEV || new URLSearchParams(window.location.search).has('smok
     get hidden() { return isPlayerHidden; },
     get hidingSpotCount() { return hidingSpots.length; },
     get navigationNodeCount() { return backroomLoaded ? navWorldPoints.size : walkable.size; },
-    startHunterTestChase() { enemyMode='CHASE';lastKnown.copy(camera.position);planPath(camera.position);pathClock=0;return {mode:enemyMode,pathLength:enemyPath.length}; },
+    startHunterTestChase() {
+      const player=camera.position.clone();player.y=0;
+      if(backroomLoaded&&navWorldPoints.size){
+        const candidates=[...navWorldPoints.values()].map(point=>({point,distance:Math.hypot(point.x-player.x,point.z-player.z)})).filter(item=>item.distance>=5&&item.distance<=10).sort((a,b)=>Math.abs(a.distance-7.5)-Math.abs(b.distance-7.5));
+        for(const item of candidates){enemyGroup.position.copy(item.point);if(canSeePlayer())break;}
+      }
+      enemyMode='CHASE';lastKnown.copy(camera.position);planPath(camera.position);pathClock=0;
+      return {mode:enemyMode,pathLength:enemyPath.length,startDistance:enemyGroup.position.distanceTo(player)};
+    },
     advanceHunterForTest(frames=30) { const count=Math.max(1,Math.min(180,Math.floor(frames))),dt=1/60;for(let i=0;i<count;i++){if(state!=='playing')break;updateEnemy(dt);}return this.enemyPosition; },
     get enemyPosition() { return enemyGroup ? {x:enemyGroup.position.x,y:enemyGroup.position.y,z:enemyGroup.position.z} : null; },
     get enemyMode() { return enemyMode; },
