@@ -306,7 +306,7 @@ function findSafeEnvironmentPosition(preferred, maxRadius = CELL, clearance = 0.
   return base;
 }
 function buildHidingSpots() {
-  if (!backroomLoaded || !navWorldPoints.size) return;
+  if (!backroomLoaded) return;
   const preferences = [cellPos(2,4), cellPos(6,2), cellPos(8,7)];
   const used = [];
   const rotations = [0, Math.PI / 2, Math.PI, -Math.PI / 2];
