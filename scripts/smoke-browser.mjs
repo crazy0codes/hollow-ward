@@ -71,7 +71,58 @@ try {
   if (rightDistance < 0.35) {
     throw new Error('Right movement failed: before=' + JSON.stringify(afterForward) + ', after=' + JSON.stringify(afterRight) + ', sample=' + JSON.stringify(rightSample) + ', forwardSample=' + JSON.stringify(forwardSample) + ', pageErrors=' + JSON.stringify(pageErrors));
   }
+  const levelInfo = await page.evaluate(() => ({
+    backroomLoaded: window.__HOLLOW_WARD__.backroomLoaded,
+    navigationNodes: window.__HOLLOW_WARD__.navigationNodeCount,
+    hidingSpots: window.__HOLLOW_WARD__.hidingSpotCount,
+  }));
+  if (levelInfo.backroomLoaded && levelInfo.navigationNodes < 50) {
+    throw new Error('Imported Backrooms navigation graph is too small: ' + JSON.stringify(levelInfo));
+  }
+  if (levelInfo.backroomLoaded && levelInfo.hidingSpots !== 3) {
+    throw new Error('Expected three usable hiding lockers: ' + JSON.stringify(levelInfo));
+  }
+
+  const chaseStart = await page.evaluate(() => window.__HOLLOW_WARD__.startHunterTestChase());
+  if (levelInfo.backroomLoaded && chaseStart.pathLength < 2) {
+    throw new Error('Hunter did not find a route through the imported level: ' + JSON.stringify(chaseStart));
+  }
+  if (levelInfo.backroomLoaded && !chaseStart.visible) {
+    throw new Error('Hunter test could not establish line of sight in the open hall: ' + JSON.stringify(chaseStart));
+  }
+  const hunterBefore = await page.evaluate(() => window.__HOLLOW_WARD__.enemyPosition);
+  await page.evaluate(() => window.__HOLLOW_WARD__.advanceHunterForTest(24));
+  const hunterAfter = await page.evaluate(() => window.__HOLLOW_WARD__.enemyPosition);
+  const hunterTravel = Math.hypot(hunterAfter.x - hunterBefore.x, hunterAfter.z - hunterBefore.z);
+  if (hunterTravel < 0.45) {
+    throw new Error('Hunter did not move during chase: ' + JSON.stringify({chaseStart,hunterBefore,hunterAfter,hunterTravel}));
+  }
+
+  const hidePosition = await page.evaluate(() => window.__HOLLOW_WARD__.prepareHideTest());
+  if (levelInfo.backroomLoaded && !hidePosition) throw new Error('Could not approach a hiding locker.');
+  await page.evaluate(() => document.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyE', key: 'e', bubbles: true })));
+  await page.evaluate(() => document.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyE', key: 'e', bubbles: true })));
+  const hiddenBefore = await page.evaluate(() => ({ hidden: window.__HOLLOW_WARD__.hidden, pos: window.__HOLLOW_WARD__.playerPosition }));
+  if (levelInfo.backroomLoaded && !hiddenBefore.hidden) throw new Error('E did not enter the hiding locker.');
+  await page.evaluate(() => document.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyW', key: 'w', bubbles: true })));
+  await page.evaluate(() => window.__HOLLOW_WARD__.stepForTest(24));
+  await page.evaluate(() => document.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyW', key: 'w', bubbles: true })));
+  const hiddenAfter = await page.evaluate(() => ({ hidden: window.__HOLLOW_WARD__.hidden, pos: window.__HOLLOW_WARD__.playerPosition }));
+  const hiddenDrift = Math.hypot(hiddenAfter.pos.x - hiddenBefore.pos.x, hiddenAfter.pos.z - hiddenBefore.pos.z);
+  if (levelInfo.backroomLoaded && (!hiddenAfter.hidden || hiddenDrift > 0.08)) {
+    throw new Error('Hiding did not keep the player still and hidden: ' + JSON.stringify({hiddenBefore,hiddenAfter,hiddenDrift}));
+  }
+  await page.evaluate(() => document.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyE', key: 'e', bubbles: true })));
+  await page.evaluate(() => document.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyE', key: 'e', bubbles: true })));
+  const hideExit = await page.evaluate(() => ({hidden:window.__HOLLOW_WARD__.hidden, state:window.__HOLLOW_WARD__.state}));
+  if (levelInfo.backroomLoaded && (hideExit.hidden || hideExit.state !== 'playing')) {
+    throw new Error('E did not let the player leave the hiding locker: ' + JSON.stringify(hideExit));
+  }
   if (pageErrors.length) throw new Error('Browser runtime errors: ' + pageErrors.join('\n'));
+
+  console.log('BROWSER MOVEMENT + HUNTER + HIDING PASS');
+  console.log('Navigation nodes: ' + levelInfo.navigationNodes + '; hiding lockers: ' + levelInfo.hidingSpots);
+  console.log('Hunter chase: ' + hunterTravel.toFixed(2) + ' units in 0.4 simulated seconds');
 
   console.log('BROWSER MOVEMENT PASS');
   console.log('Forward movement: ' + forwardDistance.toFixed(2) + ' units in 1.2s');
