@@ -1013,10 +1013,12 @@ if (import.meta.env.DEV || new URLSearchParams(window.location.search).has('smok
         const candidates=[...navWorldPoints.values()].map(point=>({point,distance:Math.hypot(point.x-player.x,point.z-player.z)})).filter(item=>item.distance>=5&&item.distance<=10).sort((a,b)=>Math.abs(a.distance-7.5)-Math.abs(b.distance-7.5));
         for(const item of candidates){enemyGroup.position.copy(item.point);if(canSeePlayer())break;}
       }
+      const visible=canSeePlayer();
       enemyMode='CHASE';lastKnown.copy(camera.position);planPath(camera.position);pathClock=0;
-      return {mode:enemyMode,pathLength:enemyPath.length,startDistance:enemyGroup.position.distanceTo(player)};
+      return {mode:enemyMode,pathLength:enemyPath.length,startDistance:enemyGroup.position.distanceTo(player),visible};
     },
     advanceHunterForTest(frames=30) { const count=Math.max(1,Math.min(180,Math.floor(frames))),dt=1/60;for(let i=0;i<count;i++){if(state!=='playing')break;updateEnemy(dt);}return this.enemyPosition; },
+    prepareHideTest() { if(!hidingSpots.length)return false;const spot=hidingSpots[0],p=nearestNavigationPoint(spot.position);playerBody.setTranslation({x:p.x,y:.88,z:p.z},true);camera.position.set(p.x,1.45,p.z);camera.updateMatrixWorld();nearestInteractable=spot;return {x:p.x,y:p.y,z:p.z}; },
     get enemyPosition() { return enemyGroup ? {x:enemyGroup.position.x,y:enemyGroup.position.y,z:enemyGroup.position.z} : null; },
     get enemyMode() { return enemyMode; },
     get hidden() { return isPlayerHidden; },
