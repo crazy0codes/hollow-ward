@@ -441,7 +441,7 @@ function findInteraction() {
     const pos=camera.position;
     const close=evidenceItems.find(item=>item.visible&&item.position.distanceTo(pos)<1.65);
     if(close){nearestInteractable=close;$('interaction-text').textContent='Play '+close.userData.name;$('interaction-prompt').classList.remove('hidden');}
-    else if(exitDoor.position.distanceTo(pos)<3.3){nearestInteractable=exitDoor;$('interaction-text').textContent='Unlock the exit';$('interaction-prompt').classList.remove('hidden');}
+    else if(exitDoor.position.distanceTo(pos)<3.3){nearestInteractable=exitDoor;$('interaction-text').textContent=exitOpen?'Exit through the door':(evidenceItems.every(item=>item.userData.collected)?'Activate security override':'Inspect security lock');$('interaction-prompt').classList.remove('hidden');}
   }
 }
 function handleInput(dt) {
