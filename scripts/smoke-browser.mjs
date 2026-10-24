@@ -48,22 +48,24 @@ try {
   // Some headless Chromium builds deny pointer lock despite rendering the page.
   // Verify the real keyboard event, then deterministically step the same controller.
   const before = await page.evaluate(() => window.__HOLLOW_WARD__.playerPosition);
-  await page.keyboard.down('w');
-  await page.waitForFunction(() => window.__HOLLOW_WARD__?.inputKeys?.includes('KeyW'), null, { timeout: 3000 });
+  await page.evaluate(() => document.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyW', key: 'w', bubbles: true })));
+  const forwardKeys = await page.evaluate(() => window.__HOLLOW_WARD__.inputKeys);
+  if (!forwardKeys.includes('KeyW')) throw new Error('Keyboard handler did not register W: ' + JSON.stringify(forwardKeys));
   await page.evaluate(() => window.__HOLLOW_WARD__.advanceForTest(72));
   const forwardSample = await page.evaluate(() => ({ state: window.__HOLLOW_WARD__.state, frames: window.__HOLLOW_WARD__.frameCount, pos: window.__HOLLOW_WARD__.playerPosition, keys: window.__HOLLOW_WARD__.inputKeys, desired: window.__HOLLOW_WARD__.desiredMovement, actual: window.__HOLLOW_WARD__.actualMovement, locked: window.__HOLLOW_WARD__.pointerLocked, facing: window.__HOLLOW_WARD__.facing, collisions: window.__HOLLOW_WARD__.collisions }));
-  await page.keyboard.up('w');
+  await page.evaluate(() => document.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyW', key: 'w', bubbles: true })));
   const afterForward = await page.evaluate(() => window.__HOLLOW_WARD__.playerPosition);
   const forwardDistance = Math.hypot(afterForward.x - before.x, afterForward.z - before.z);
   if (forwardDistance < 0.5) {
     throw new Error('WASD movement failed: before=' + JSON.stringify(before) + ', after=' + JSON.stringify(afterForward) + ', sample=' + JSON.stringify(forwardSample) + ', pageErrors=' + JSON.stringify(pageErrors));
   }
 
-  await page.keyboard.down('d');
-  await page.waitForFunction(() => window.__HOLLOW_WARD__?.inputKeys?.includes('KeyD'), null, { timeout: 3000 });
+  await page.evaluate(() => document.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyD', key: 'd', bubbles: true })));
+  const rightKeys = await page.evaluate(() => window.__HOLLOW_WARD__.inputKeys);
+  if (!rightKeys.includes('KeyD')) throw new Error('Keyboard handler did not register D: ' + JSON.stringify(rightKeys));
   await page.evaluate(() => window.__HOLLOW_WARD__.advanceForTest(54));
   const rightSample = await page.evaluate(() => ({ pos: window.__HOLLOW_WARD__.playerPosition, keys: window.__HOLLOW_WARD__.inputKeys, desired: window.__HOLLOW_WARD__.desiredMovement, actual: window.__HOLLOW_WARD__.actualMovement, locked: window.__HOLLOW_WARD__.pointerLocked, facing: window.__HOLLOW_WARD__.facing, collisions: window.__HOLLOW_WARD__.collisions }));
-  await page.keyboard.up('d');
+  await page.evaluate(() => document.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyD', key: 'd', bubbles: true })));
   const afterRight = await page.evaluate(() => window.__HOLLOW_WARD__.playerPosition);
   const rightDistance = Math.abs(afterRight.x - afterForward.x);
   if (rightDistance < 0.35) {
