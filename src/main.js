@@ -33,17 +33,18 @@ const M = {
   rust: mat(0x55272b, 0.9), key: new THREE.MeshStandardMaterial({ color: 0xcba34d, roughness: 0.28, metalness: 0.74, emissive: 0x4a2905, emissiveIntensity: 0.5 }),
   paper: mat(0xcac3ae, 1),
 };
-let scene, camera, renderer, composer, controls, world, kcc, playerBody, playerCollider, navGraph;
+let scene, camera, renderer, composer, controls, world, kcc, playerBody, playerCollider, navGraph, navWorldPoints = new Map(), navGridLookup = new Map();
 let flashlight, flashlightTarget, flashlightOn = true, battery = 100, exitDoor, exitPivot, exitCollider, exitOpen = false;
 let enemyGroup, enemyModel, enemyLight, enemyMixer, enemyClips = {}, enemyFallback = false, enemyProcedural = false, enemyAssetName = 'procedural hunter';
 let backroomLoaded = false, backroomGroup = null, backroomBounds = null, playerSpawn = null, enemySpawn = null, houseGroup = null, houseMixer = null, finaleActive = false, finaleClock = 0, receiverConsole = null;
 let apparitionGroup, apparitionModel, apparitionActive = false, apparitionClock = 0, nextApparitionAt = 32;
-let signalStations = [], interactive = [], wallVisuals = [], lamps = [], nearestInteractable = null, wallParts = [], trimParts = [];
+let signalStations = [], hidingSpots = [], interactive = [], wallVisuals = [], lamps = [], nearestInteractable = null, wallParts = [], trimParts = [];
+let isPlayerHidden = false, currentHideSpot = null, restoreFlashlightAfterHide = false;
 let state = 'menu', elapsed = 0, messageTimer = 0, threat = 0, verticalSpeed = 0, bob = 0, footstep = 0, initializationError = null, frameCount = 0;
 let lastDesired = { x: 0, y: 0, z: 0 }, lastActual = { x: 0, y: 0, z: 0 };
 let enemyMode = 'LURK', enemyPath = [], enemyPathIndex = 0, patrolTarget = null, pathClock = 0, searchClock = 0;
 let lastKnown = new THREE.Vector3(), audioContext, masterGain, audioReady = false, heartbeatClock = 0;
-const moveKeys = new Set(), clock = new THREE.Clock(), raycaster = new THREE.Raycaster(), clearanceRaycaster = new THREE.Raycaster();
+const moveKeys = new Set(), clock = new THREE.Clock(), raycaster = new THREE.Raycaster(), clearanceRaycaster = new THREE.Raycaster(), navigationRaycaster = new THREE.Raycaster();
 const clearanceDirections = [
   new THREE.Vector3(1,0,0), new THREE.Vector3(-1,0,0), new THREE.Vector3(0,0,1), new THREE.Vector3(0,0,-1),
 ];
@@ -348,7 +349,56 @@ async function loadFinalHouse() {
     houseGroup=null;houseMixer=null;return false;
   }
 }
+function navigationSegmentClear(a, b) {
+  const dx = b.x - a.x, dz = b.z - a.z;
+  const distance = Math.hypot(dx, dz);
+  if (distance < .08) return true;
+  const dir = new THREE.Vector3(dx / distance, 0, dz / distance);
+  const side = new THREE.Vector3(-dir.z, 0, dir.x);
+  const maxHit = distance - .14;
+  if (maxHit <= .06) return true;
+  for (const offset of [-.3, 0, .3]) {
+    const origin = new THREE.Vector3(a.x + side.x * offset, .95, a.z + side.z * offset);
+    navigationRaycaster.set(origin, dir);
+    navigationRaycaster.near = .06;
+    navigationRaycaster.far = maxHit;
+    if (navigationRaycaster.intersectObjects(wallVisuals, false).length) return false;
+  }
+  return true;
+}
+function buildBackroomNavigationGraph() {
+  navWorldPoints.clear(); navGridLookup.clear();
+  const graph = new YUKA.Graph();
+  if (!backroomBounds) return graph;
+  const spacing = 1.8, margin = 1.35;
+  const minX = backroomBounds.min.x + margin, maxX = backroomBounds.max.x - margin;
+  const minZ = backroomBounds.min.z + margin, maxZ = backroomBounds.max.z - margin;
+  const columns = Math.floor((maxX - minX) / spacing) + 1;
+  const rows = Math.floor((maxZ - minZ) / spacing) + 1;
+  for (let iz = 0; iz < rows; iz++) for (let ix = 0; ix < columns; ix++) {
+    const point = new THREE.Vector3(minX + ix * spacing, 0, minZ + iz * spacing);
+    if (!isBackroomPointClear(point, .76)) continue;
+    const id = navWorldPoints.size;
+    navWorldPoints.set(id, point); navGridLookup.set(ix + ',' + iz, id);
+    graph.addNode(new YUKA.Node(id));
+  }
+  for (const [key, id] of navGridLookup) {
+    const [ix, iz] = key.split(',').map(Number), point = navWorldPoints.get(id);
+    for (const [dx, dz] of [[1, 0], [0, 1]]) {
+      const nextId = navGridLookup.get((ix + dx) + ',' + (iz + dz));
+      if (nextId === undefined) continue;
+      const nextPoint = navWorldPoints.get(nextId);
+      if (!navigationSegmentClear(point, nextPoint)) continue;
+      graph.addEdge(new YUKA.Edge(id, nextId, 1));
+      graph.addEdge(new YUKA.Edge(nextId, id, 1));
+    }
+  }
+  console.info('Backrooms navigation built:', navWorldPoints.size, 'walkable nodes');
+  return graph;
+}
 function buildNavigationGraph() {
+  navWorldPoints.clear(); navGridLookup.clear();
+  if (backroomLoaded && backroomBounds) return buildBackroomNavigationGraph();
   const graph = new YUKA.Graph();
   for (const label of walkable) { const [r,c] = label.split(',').map(Number); graph.addNode(new YUKA.Node(r*COLS+c)); }
   for (const label of walkable) {
@@ -358,18 +408,42 @@ function buildNavigationGraph() {
   return graph;
 }
 function nearestNode(pos) {
+  if (backroomLoaded && navWorldPoints.size) {
+    let best = -1, distance = Infinity;
+    for (const [id, point] of navWorldPoints) {
+      const dx = point.x - pos.x, dz = point.z - pos.z, d = dx * dx + dz * dz;
+      if (d < distance) { best = id; distance = d; }
+    }
+    return best;
+  }
   const cell = toCell(pos); if (openCell(cell.row,cell.col)) return cell.row*COLS+cell.col;
   let best=0,dist=Infinity;
   for (const label of walkable) { const [r,c] = label.split(',').map(Number), p=cellPos(r,c), d=p.distanceToSquared(new THREE.Vector3(pos.x,0,pos.z)); if(d<dist){best=r*COLS+c;dist=d;} }
   return best;
 }
+function nearestNavigationPoint(preferred, excluded = [], minSpacing = 0) {
+  if (!backroomLoaded || !navWorldPoints.size) return findSafeEnvironmentPosition(preferred, CELL);
+  const minDistanceSq = minSpacing * minSpacing;
+  let candidates = [...navWorldPoints.values()].filter(point => excluded.every(other => point.distanceToSquared(other) >= minDistanceSq));
+  if (!candidates.length) candidates = [...navWorldPoints.values()];
+  let best = null, bestDistance = Infinity;
+  for (const point of candidates) {
+    const distance = (point.x - preferred.x) ** 2 + (point.z - preferred.z) ** 2;
+    if (distance < bestDistance) { best = point; bestDistance = distance; }
+  }
+  return best ? best.clone() : preferred.clone().setY(0);
+}
 function findPath(from,to) {
   const a=nearestNode(from), b=nearestNode(to);
-  if(a===b) return [cellPos(Math.floor(a/COLS),a%COLS)];
-  // Every corridor edge has equal cost; Yuka's BFS finds a shortest path without a heuristic.
+  if (a < 0 || b < 0) return [];
+  const toPosition = id => backroomLoaded && navWorldPoints.has(id)
+    ? navWorldPoints.get(id).clone()
+    : cellPos(Math.floor(id/COLS),id%COLS);
+  if(a===b) return [toPosition(a)];
   const search=new YUKA.BFS(navGraph,a,b); search.search();
   const path=search.getPath();
-  return path.map(id=>cellPos(Math.floor(id/COLS),id%COLS));
+  if (backroomLoaded && path.length < 2) return [];
+  return path.map(toPosition);
 }
 function createHunterFallback() {
   enemyFallback = true;
