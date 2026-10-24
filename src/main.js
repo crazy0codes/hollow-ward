@@ -37,7 +37,7 @@ let scene, camera, renderer, composer, controls, world, kcc, playerBody, playerC
 let flashlight, flashlightTarget, flashlightOn = true, battery = 100, exitDoor, exitPivot, exitCollider, exitOpen = false;
 let enemyGroup, enemyModel, enemyLight, enemyMixer, enemyClips = {}, enemyFallback = false, enemyProcedural = false, enemyAssetName = 'procedural hunter';
 let apparitionGroup, apparitionModel, apparitionActive = false, apparitionClock = 0, nextApparitionAt = 32;
-let keys = [], interactive = [], wallVisuals = [], lamps = [], nearestInteractable = null, wallParts = [], trimParts = [];
+let evidenceItems = [], interactive = [], wallVisuals = [], lamps = [], nearestInteractable = null, wallParts = [], trimParts = [];
 let state = 'menu', elapsed = 0, messageTimer = 0, threat = 0, verticalSpeed = 0, bob = 0, footstep = 0, initializationError = null;
 let lastDesired = { x: 0, y: 0, z: 0 }, lastActual = { x: 0, y: 0, z: 0 };
 let enemyMode = 'LURK', enemyPath = [], enemyPathIndex = 0, patrolTarget = null, pathClock = 0, searchClock = 0;
@@ -157,24 +157,32 @@ function createExitCollider() {
   exitCollider = world.createCollider(RAPIER.ColliderDesc.cuboid(1.18,1.46,.14),body);
 }
 function removeExitCollider() { if (exitCollider) { world.removeCollider(exitCollider,true); exitCollider = null; } }
-function buildKeys() {
+function buildEvidence() {
   const spots = [
-    { row:2,col:1,name:'WEST WARD KEY',note:'The paper tied to the brass key is stiff with old blood.' },
-    { row:2,col:8,name:'SURGERY KEY',note:'The tag has been scratched until only a number remains.' },
-    { row:8,col:2,name:'MORGUE KEY',note:'It is warm, as if someone has been holding it.' },
+    { row:2,col:1,name:'INCIDENT TAPE 01',note:'TAPE 01 // OBSERVATION: “The subject answers voices from disconnected speakers. Staff are ordered not to respond. The voice it uses may belong to someone who is still alive.”' },
+    { row:2,col:8,name:'INCIDENT TAPE 02',note:'TAPE 02 // INTERNAL MEMO: “We did not summon it. We constructed a receiver from recorded neural patterns. It learned to imitate the dead before it learned to imitate us.”' },
+    { row:8,col:2,name:'INCIDENT TAPE 03',note:'TAPE 03 // FINAL DIRECTIVE: “Subject 09 is not a patient. It is the breach. Do not let it hear the evacuation sequence. Do not let it reach the surface.”' },
   ];
-  keys = spots.map((s,i) => {
-    const p = cellPos(s.row,s.col), group = new THREE.Group();
-    group.position.set(p.x+(i-1)*.25,.98,p.z-.45); scene.add(group);
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(.16,.04,8,18),M.key); ring.rotation.y = Math.PI/2; ring.position.x = -.12; group.add(ring);
-    box(.43,.07,.07,M.key,new THREE.Vector3(.12,0,0),group);
-    box(.07,.15,.07,M.key,new THREE.Vector3(.26,-.04,0),group);
-    box(.07,.11,.07,M.key,new THREE.Vector3(.04,-.02,0),group);
-    const glow = new THREE.PointLight(0xcda24b,.5,2.2,2); glow.position.y=.12; group.add(glow);
-    group.userData = { targetType:'key', keyIndex:i, name:s.name, note:s.note, collected:false };
-    interactive.push(group); return group;
+  evidenceItems = spots.map((s,i) => {
+    const p = cellPos(s.row,s.col), group = new THREE.Group(), homeY=.7;
+    group.position.set(p.x+(i-1)*.25,homeY,p.z-.45);
+    // A battered field recorder/cassette, not a collectible key.
+    box(.46,.12,.29,M.darkWall,new THREE.Vector3(0,0,0),group);
+    box(.36,.035,.21,M.metal,new THREE.Vector3(0,.078,0),group);
+    box(.23,.024,.045,M.trim,new THREE.Vector3(0,.108,.055),group);
+    for(const side of [-1,1]) {
+      cylinder(.036,.036,M.darkWall,new THREE.Vector3(side*.105,.108,-.045),group,10);
+      cylinder(.018,.018,M.trim,new THREE.Vector3(side*.105,.13,-.045),group,8);
+    }
+    box(.065,.022,.025,M.rust,new THREE.Vector3(.12,.11,-.075),group);
+    const ledMaterial = new THREE.MeshStandardMaterial({color:0x9f1823,emissive:0xff0718,emissiveIntensity:2.2,roughness:.3});
+    const led = new THREE.Mesh(new THREE.SphereGeometry(.022,7,6),ledMaterial);
+    led.position.set(-.17,.112,.1);group.add(led);
+    const glow = new THREE.PointLight(0x8d1e24,.22,1.5);glow.position.set(0,.18,0);group.add(glow);
+    group.userData = {targetType:'evidence',evidenceIndex:i,name:s.name,note:s.note,collected:false,homeY,phase:i*2.1};
+    scene.add(group); interactive.push(group); return group;
   });
-  return keys;
+  return evidenceItems;
 }
 function buildNavigationGraph() {
   const graph = new YUKA.Graph();
@@ -388,20 +396,20 @@ function setThreat(value) {
 }
 function updateHud() {
   $('battery-number').textContent=Math.ceil(battery)+'%'; $('battery-fill').style.width=battery+'%'; $('battery-fill').style.background=battery<22?'#bd343b':'#c4bca6';
-  const count=keys.filter(k=>k.userData.collected).length;
-  [...$('key-pips').children].forEach((pip,i)=>pip.classList.toggle('filled',i<count));
-  $('objective-text').textContent=count<3?'Find the three ward keys ('+count+'/3)':'Return to the north exit';
+  const count=evidenceItems.filter(item=>item.userData.collected).length;
+  [...$('evidence-pips').children].forEach((pip,i)=>pip.classList.toggle('filled',i<count));
+  $('objective-text').textContent=count<3?'Recover incident tapes ('+count+'/3)':'Use the north security override';
   $('location-label').textContent=enemyMode==='CHASE'?'ST. AGNES / MOVEMENT DETECTED':'ST. AGNES / RECOVERY WING';
 }
 function startRun() {
   if(!world||!controls)return;
   state='playing';elapsed=0;battery=100;flashlightOn=true;flashlight.visible=true;exitOpen=false;enemyMode='LURK';threat=0;searchClock=0;pathClock=0;verticalSpeed=0;bob=0;footstep=0;apparitionActive=false;apparitionClock=0;nextApparitionAt=32;if(apparitionGroup)apparitionGroup.visible=false;
-  for(const key of keys){key.userData.collected=false;key.visible=true;key.position.y=.98;}
+  for(const item of evidenceItems){item.userData.collected=false;item.visible=true;item.position.y=item.userData.homeY;item.rotation.y=0;}
   if(exitPivot)exitPivot.rotation.y=0;if(!exitCollider)createExitCollider();
   const start=cellPos(9,5);playerBody.setTranslation({x:start.x,y:.88,z:start.z},true);
   enemyGroup.position.copy(cellPos(2,8));enemyPath=[];enemyPathIndex=0;patrolTarget=null;lastKnown.copy(start);
   $('title-screen').classList.add('hidden');$('pause-screen').classList.add('hidden');$('end-screen').classList.add('hidden');$('hud').classList.remove('hidden');$('interaction-prompt').classList.add('hidden');
-  updateHud();initAudio();controls.lock();showMessage('Find the ward keys. The exit is at the north end of the hospital.',4.5);
+  updateHud();initAudio();controls.lock();showMessage('Recover the incident tapes. Do not answer any voice calling your name.',4.5);
 }
 function pauseRun(){if(state!=='playing')return;state='paused';$('pause-screen').classList.remove('hidden');$('hud').classList.add('hidden');}
 function resumeRun(){state='playing';$('pause-screen').classList.add('hidden');$('hud').classList.remove('hidden');controls.lock();}
@@ -409,15 +417,15 @@ function endRun(won) {
   if(state==='won'||state==='lost')return;state=won?'won':'lost';controls.unlock();$('hud').classList.add('hidden');$('pause-screen').classList.add('hidden');$('end-screen').classList.remove('hidden');
   $('end-eyebrow').textContent=won?'ST. AGNES // DISCHARGE PAPERS':'ST. AGNES // INCIDENT REPORT';
   $('end-title').textContent=won?'YOU GOT OUT.':'PATIENT NOT FOUND.';
-  $('end-copy').textContent=won?'The three keys turned. The door opened. Behind you, the ward lights went out one by one. Night shift complete in '+Math.floor(elapsed/60)+'m '+Math.floor(elapsed%60)+'s.':'Your footsteps stop. Somewhere in the ward, a monitor begins to beep again. The night shift has found another patient.';
+  $('end-copy').textContent=won?'The override releases the door. On the dead monitor, one final line appears: SUBJECT 09 HAS LEFT CONTAINMENT. The intercom crackles in your own voice: “All staff report to Ward 09. The patient has escaped.” The broadcast continues after the screen goes black.':'The Attendant reaches you. The intercom announces: “Subject 09 returned to containment.” A monitor starts beeping beneath the silence.';
   cue(won?'door':'sting',won?.12:.3);
 }
 function toggleFlashlight(){if(state!=='playing')return;if(battery<=.5){flashlightOn=false;flashlight.visible=false;showMessage('The flashlight battery is dead.',1.8);cue('click');return;}flashlightOn=!flashlightOn;flashlight.visible=flashlightOn;cue('click',.08);}
 function interact(target) {
   if(!target)return;const data=target.userData||{};
-  if(data.targetType==='key'){if(data.collected)return;data.collected=true;target.visible=false;showMessage(data.name+' acquired.',2.2);cue('pickup',.18);updateHud();if(keys.every(k=>k.userData.collected))showMessage('All three keys are secured. Return to the north exit.',4);return;}
+  if(data.targetType==='evidence'){if(data.collected)return;data.collected=true;target.visible=false;showMessage(data.note,6);cue('pickup',.18);updateHud();if(evidenceItems.every(item=>item.userData.collected))showMessage('All three tapes recovered. The north security override is exposed. Use the exit panel.',4.5);return;}
   if(data.targetType==='note'){showMessage('NURSE’S NOTE: “If you hear it running, stay quiet. If the lights turn red, do not look behind you.”',6);cue('pickup',.1);return;}
-  if(data.targetType==='exit'){const count=keys.filter(k=>k.userData.collected).length;if(count<3){showMessage('Three ward keys required. ('+count+'/3)',2.6);cue('click',.08);return;}if(!exitOpen){exitOpen=true;removeExitCollider();showMessage('The lock turns. The door is moving. RUN.',3.4);cue('door',.24);}}
+  if(data.targetType==='exit'){const count=evidenceItems.filter(item=>item.userData.collected).length;if(count<3){showMessage('OVERRIDE DENIED. Incident tapes missing ('+count+'/3).',2.6);cue('click',.08);return;}if(!exitOpen){exitOpen=true;removeExitCollider();showMessage('SECURITY OVERRIDE ACCEPTED. The door is opening. RUN.',3.4);cue('door',.24);}}
 }
 function findInteraction() {
   nearestInteractable=null;$('interaction-prompt').classList.add('hidden');$('crosshair').classList.remove('active');
@@ -427,12 +435,12 @@ function findInteraction() {
   for(const hit of hits){
     let root=hit.object;
     while(root&&root!==scene&&root.userData?.targetType===undefined)root=root.parent;
-    if(root&&root.userData?.targetType!==undefined){nearestInteractable=root;$('interaction-text').textContent=root.userData.targetType==='key'?'Pick up '+root.userData.name:root.userData.targetType==='note'?'Read nurse’s note':(exitOpen?'Exit through the door':'Unlock the exit');$('interaction-prompt').classList.remove('hidden');$('crosshair').classList.add('active');break;}
+    if(root&&root.userData?.targetType!==undefined){nearestInteractable=root;$('interaction-text').textContent=root.userData.targetType==='evidence'?'Play '+root.userData.name:root.userData.targetType==='note'?'Read nurse’s note':(exitOpen?'Exit through the door':(evidenceItems.every(item=>item.userData.collected)?'Activate security override':'Inspect security lock'));$('interaction-prompt').classList.remove('hidden');$('crosshair').classList.add('active');break;}
   }
   if(!nearestInteractable){
     const pos=camera.position;
-    const close=keys.find(k=>k.visible&&k.position.distanceTo(pos)<1.65);
-    if(close){nearestInteractable=close;$('interaction-text').textContent='Pick up '+close.userData.name;$('interaction-prompt').classList.remove('hidden');}
+    const close=evidenceItems.find(item=>item.visible&&item.position.distanceTo(pos)<1.65);
+    if(close){nearestInteractable=close;$('interaction-text').textContent='Play '+close.userData.name;$('interaction-prompt').classList.remove('hidden');}
     else if(exitDoor.position.distanceTo(pos)<3.3){nearestInteractable=exitDoor;$('interaction-text').textContent='Unlock the exit';$('interaction-prompt').classList.remove('hidden');}
   }
 }
@@ -544,6 +552,13 @@ function updateApparition(dt) {
     apparitionGroup.scale.setScalar(.92);
   }
 }
+function updateEvidenceMotion() {
+  for (const item of evidenceItems) {
+    if (!item.visible || item.userData.collected) continue;
+    item.position.y = item.userData.homeY + Math.sin(elapsed * 1.7 + item.userData.phase) * .035;
+    item.rotation.y = Math.sin(elapsed * .55 + item.userData.phase) * .12;
+  }
+}
 function flicker(dt) {
   for(const lamp of lamps){lamp.clock+=dt;const broken=Math.sin(lamp.clock*2.7)>.94||Math.sin(lamp.clock*1.4)<-.97;lamp.light.intensity=broken?.08:lamp.base*(.82+Math.sin(lamp.clock*1.8)*.12);lamp.tube.material.emissiveIntensity=broken?.06:.55+lamp.base*.45;}
 }
@@ -551,7 +566,7 @@ function updateDoor(dt) {
   if(exitOpen){exitPivot.rotation.y=THREE.MathUtils.damp(exitPivot.rotation.y,Math.PI*.47,1.4,dt);const p=camera.position;if(p.z<EXIT_Z-2&&Math.abs(p.x)<2.9)endRun(true);}
 }
 async function initialise() {
-  $('loading-screen').classList.remove('hidden');setupRenderer();await RAPIER.init();setupPhysics();navGraph=buildNavigationGraph();drawHospital();buildKeys();await loadOptionalAssets();$('loading-screen').classList.add('hidden');
+  $('loading-screen').classList.remove('hidden');setupRenderer();await RAPIER.init();setupPhysics();navGraph=buildNavigationGraph();drawHospital();buildEvidence();await loadOptionalAssets();$('loading-screen').classList.add('hidden');
 }
 $('start-button').addEventListener('click',()=>startRun());
 $('resume-button').addEventListener('click',()=>resumeRun());
@@ -579,7 +594,7 @@ if (import.meta.env.DEV || new URLSearchParams(window.location.search).has('smok
 }
 function animate() {
   requestAnimationFrame(animate);const dt=Math.min(clock.getDelta(),.1);
-  if(state==='playing'){elapsed+=dt;handleInput(dt);world.timestep=dt;world.step();updateEnemy(dt);updateApparition(dt);flicker(dt);updateDoor(dt);if(audioReady&&audioContext?.state==='suspended')audioContext.resume().catch(()=>{});}
+  if(state==='playing'){elapsed+=dt;handleInput(dt);world.timestep=dt;world.step();updateEnemy(dt);updateApparition(dt);updateEvidenceMotion();flicker(dt);updateDoor(dt);if(audioReady&&audioContext?.state==='suspended')audioContext.resume().catch(()=>{});}
   if(composer)composer.render(dt);else if(renderer&&scene&&camera)renderer.render(scene,camera);
 }
 animate();
