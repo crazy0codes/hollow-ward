@@ -169,7 +169,7 @@ function buildSignalStations() {
     { row:8, col:2, name:'LOWER ECHO RELAY', phase:'PHASE 03 // SUBJECT 09' },
   ];
   signalStations = spots.map((s,i) => {
-    const p = findSafeEnvironmentPosition(cellPos(s.row,s.col), CELL), group = new THREE.Group();
+    const p = nearestNavigationPoint(cellPos(s.row,s.col), [...hidingSpots.map(spot=>spot.position), ...signalStations.map(station=>station.position)], 5.5), group = new THREE.Group();
     group.position.set(p.x,0,p.z);
     box(.56,.72,.56,M.darkWall,new THREE.Vector3(0,.36,0),group);
     box(.76,.12,.7,M.metal,new THREE.Vector3(0,.77,0),group);
@@ -191,7 +191,7 @@ function buildSignalStations() {
   return signalStations;
 }
 function buildReceiverConsole() {
-  const p = findSafeEnvironmentPosition(cellPos(5,5), CELL), group = new THREE.Group();
+  const p = nearestNavigationPoint(cellPos(5,5), [...hidingSpots.map(spot=>spot.position), ...signalStations.map(station=>station.position)], 5.5), group = new THREE.Group();
   group.position.set(p.x,0,p.z);
   box(1.15,.82,.8,M.darkWall,new THREE.Vector3(0,.41,0),group);
   box(1.25,.12,.88,M.metal,new THREE.Vector3(0,.87,0),group);
@@ -304,6 +304,75 @@ function findSafeEnvironmentPosition(preferred, maxRadius = CELL, clearance = 0.
   }
   console.warn('No clear Backrooms position found near', base.toArray(), '- using its authored fallback position.');
   return base;
+}
+function buildHidingSpots() {
+  if (!backroomLoaded || !navWorldPoints.size) return;
+  const preferences = [cellPos(2,4), cellPos(6,2), cellPos(8,7)];
+  const used = [];
+  const rotations = [0, Math.PI / 2, Math.PI, -Math.PI / 2];
+  hidingSpots = [];
+  for (let i = 0; i < preferences.length; i++) {
+    const position = nearestNavigationPoint(preferences[i], used, 7);
+    used.push(position.clone());
+    const group = new THREE.Group();
+    group.name = 'Echo hiding locker ' + (i + 1);
+    group.position.copy(position);
+    group.rotation.y = rotations[i];
+    box(.98,2.15,.78,M.darkWall,new THREE.Vector3(0,1.075,0),group);
+    const doorMaterial = mat(i===1?0x33282a:0x292c2e,.92,.12);
+    box(.84,1.92,.055,doorMaterial,new THREE.Vector3(0,1.08,.405),group);
+    box(.9,.075,.08,M.metal,new THREE.Vector3(0,2.13,.38),group);
+    box(.9,.075,.08,M.metal,new THREE.Vector3(0,.07,.38),group);
+    box(.065,1.98,.08,M.metal,new THREE.Vector3(-.45,1.08,.38),group);
+    box(.065,1.98,.08,M.metal,new THREE.Vector3(.45,1.08,.38),group);
+    box(.035,.25,.045,M.trim,new THREE.Vector3(.27,1.0,.45),group);
+    const indicator=box(.09,.055,.04,mat(0x721922,.5,.2),new THREE.Vector3(0,1.92,.45),group);
+    indicator.material.emissive.set(0x9d1724);
+    indicator.material.emissiveIntensity=.45;
+    group.userData={targetType:'hidingSpot',name:'EMERGENCY LOCKER',spotIndex:i,indicator};
+    scene.add(group);
+    interactive.push(group);
+    hidingSpots.push(group);
+    group.traverse(node=>{
+      if(node.isMesh){node.castShadow=false;node.receiveShadow=false;wallVisuals.push(node);}
+    });
+    fixedBox(1.0,2.16,.82,new THREE.Vector3(position.x,1.08,position.z),group.rotation.y,'hiding-locker');
+  }
+}
+function enterHideSpot(spot) {
+  if (!spot || isPlayerHidden) return;
+  if (spot.position.distanceTo(camera.position) > 2.25) {
+    showMessage('Move closer to the locker first.',1.8);
+    return;
+  }
+  currentHideSpot=spot;
+  restoreFlashlightAfterHide=flashlightOn;
+  isPlayerHidden=true;
+  moveKeys.clear();
+  flashlightOn=false;flashlight.visible=false;
+  const p=spot.position;
+  playerBody.setTranslation({x:p.x,y:.88,z:p.z},true);
+  camera.position.set(p.x,1.45,p.z);
+  camera.updateMatrixWorld();
+  $('hide-overlay')?.classList.remove('hidden');
+  showMessage('You fold into the locker. Stay still until the footsteps fade.',3.4);
+  cue('click',.05);
+}
+function leaveHideSpot() {
+  if (!isPlayerHidden || !currentHideSpot) return;
+  const spot=currentHideSpot;
+  const forwardExit=new THREE.Vector3(0,0,1.45).applyAxisAngle(new THREE.Vector3(0,1,0),spot.rotation.y).add(spot.position);
+  const rearExit=new THREE.Vector3(0,0,-1.45).applyAxisAngle(new THREE.Vector3(0,1,0),spot.rotation.y).add(spot.position);
+  let exit=isBackroomPointClear(forwardExit,.45)?forwardExit:rearExit;
+  if(!isBackroomPointClear(exit,.45))exit=nearestNavigationPoint(spot.position);
+  isPlayerHidden=false;currentHideSpot=null;
+  playerBody.setTranslation({x:exit.x,y:.88,z:exit.z},true);
+  camera.position.set(exit.x,1.45,exit.z);
+  camera.updateMatrixWorld();
+  flashlightOn=restoreFlashlightAfterHide&&battery>.5;
+  flashlight.visible=flashlightOn;
+  $('hide-overlay')?.classList.add('hidden');
+  showMessage('You step back into the corridor. Keep moving.',2.2);
 }
 function drawBackroomLighting() {
   for(const [r,c,power] of [[1,2,.72],[1,7,.48],[3,5,.42],[5,3,.58],[5,7,.38],[8,2,.46],[8,7,.5]])addLamp(r,c,power);
@@ -631,12 +700,12 @@ function updateHud() {
   $('battery-number').textContent=Math.ceil(battery)+'%'; $('battery-fill').style.width=battery+'%'; $('battery-fill').style.background=battery<22?'#bd343b':'#c4bca6';
   const count=signalStations.filter(item=>item.userData.activated).length;
   [...$('signal-pips').children].forEach((pip,i)=>pip.classList.toggle('filled',i<count));
-  $('objective-text').textContent=count<3?'Synchronize echo relays ('+count+'/3)':'Return to the inversion receiver';
+  $('objective-text').textContent=isPlayerHidden?'HIDDEN // HOLD STILL':count<3?'Synchronize echo relays ('+count+'/3)':'Return to the inversion receiver';
   $('location-label').textContent=enemyMode==='CHASE'?'ST. AGNES / MOVEMENT DETECTED':'ST. AGNES / RECOVERY WING';
 }
 function startRun() {
   if(!world||!controls)return;
-  state='playing';elapsed=0;battery=100;flashlightOn=true;flashlight.visible=true;exitOpen=false;finaleActive=false;finaleClock=0;enemyMode='LURK';threat=0;searchClock=0;pathClock=0;verticalSpeed=0;bob=0;footstep=0;apparitionActive=false;apparitionClock=0;nextApparitionAt=32;
+  state='playing';elapsed=0;battery=100;flashlightOn=true;flashlight.visible=true;exitOpen=false;finaleActive=false;finaleClock=0;enemyMode='LURK';threat=0;searchClock=0;pathClock=0;verticalSpeed=0;bob=0;footstep=0;apparitionActive=false;apparitionClock=0;nextApparitionAt=32;isPlayerHidden=false;currentHideSpot=null;$('hide-overlay')?.classList.add('hidden');
   if(apparitionGroup)apparitionGroup.visible=false;
   if(houseGroup){scene.remove(houseGroup);houseGroup=null;houseMixer=null;}
   for(const station of signalStations){
@@ -663,6 +732,7 @@ function toggleFlashlight(){if(state!=='playing')return;if(battery<=.5){flashlig
 function interact(target) {
   if(!target)return;
   const data=target.userData||{};
+  if(data.targetType==='hidingSpot'){if(isPlayerHidden)leaveHideSpot();else enterHideSpot(target);return;}
   if(data.targetType==='station'){
     if(data.activated){showMessage(data.name+' is already synchronized. It is still listening.',2.6);return;}
     data.activated=true;
@@ -687,20 +757,22 @@ function interact(target) {
 function findInteraction() {
   nearestInteractable=null;$('interaction-prompt').classList.add('hidden');$('crosshair').classList.remove('active');
   if(state!=='playing')return;
+  if(isPlayerHidden && currentHideSpot){nearestInteractable=currentHideSpot;$('interaction-text').textContent='Leave hiding place';$('interaction-prompt').classList.remove('hidden');return;}
   raycaster.setFromCamera(new THREE.Vector2(0,0),camera);raycaster.far=3.0;
   const roots=interactive.filter(o=>o.visible),hits=raycaster.intersectObjects(roots,true);
   for(const hit of hits){
     let root=hit.object;
     while(root&&root!==scene&&root.userData?.targetType===undefined)root=root.parent;
-    if(root&&root.userData?.targetType!==undefined){nearestInteractable=root;$('interaction-text').textContent=root.userData.targetType==='station'?(root.userData.activated?'Inspect '+root.userData.name:'Synchronize '+root.userData.name):root.userData.targetType==='receiver'?'Invert the signal':root.userData.targetType==='note'?'Read the note':'Interact';$('interaction-prompt').classList.remove('hidden');$('crosshair').classList.add('active');break;}
+    if(root&&root.userData?.targetType!==undefined){nearestInteractable=root;const type=root.userData.targetType;$('interaction-text').textContent=type==='station'?(root.userData.activated?'Inspect '+root.userData.name:'Synchronize '+root.userData.name):type==='receiver'?'Invert the signal':type==='note'?'Read the note':type==='hidingSpot'?'Hide in locker':'Interact';$('interaction-prompt').classList.remove('hidden');$('crosshair').classList.add('active');break;}
   }
   if(!nearestInteractable){
     const pos=camera.position;
-    const close=interactive.find(item=>item.visible&&item.position.distanceTo(pos)<1.9&&['station','receiver','note'].includes(item.userData?.targetType));
-    if(close){nearestInteractable=close;$('interaction-text').textContent=close.userData.targetType==='station'?(close.userData.activated?'Inspect '+close.userData.name:'Synchronize '+close.userData.name):close.userData.targetType==='receiver'?'Invert the signal':'Read the note';$('interaction-prompt').classList.remove('hidden');}
+    const close=interactive.find(item=>item.visible&&item.position.distanceTo(pos)<2.1&&['station','receiver','note','hidingSpot'].includes(item.userData?.targetType));
+    if(close){nearestInteractable=close;const type=close.userData.targetType;$('interaction-text').textContent=type==='station'?(close.userData.activated?'Inspect '+close.userData.name:'Synchronize '+close.userData.name):type==='receiver'?'Invert the signal':type==='note'?'Read the note':'Hide in locker';$('interaction-prompt').classList.remove('hidden');}
   }
 }
 function handleInput(dt) {
+  if(isPlayerHidden && currentHideSpot){camera.position.set(currentHideSpot.position.x,1.45,currentHideSpot.position.z);camera.updateMatrixWorld();findInteraction();if(messageTimer>0){messageTimer-=dt;if(messageTimer<=0)$('message').classList.add('hidden');}updateHud();return;}
   const running=moveKeys.has('ShiftLeft')||moveKeys.has('ShiftRight');
   const speed=running?5.25:3.05;
   const x=Number(moveKeys.has('KeyD'))-Number(moveKeys.has('KeyA')),z=Number(moveKeys.has('KeyW'))-Number(moveKeys.has('KeyS'));
@@ -874,11 +946,17 @@ async function initialise() {
   $('loading-screen').classList.remove('hidden');
   setupRenderer();await RAPIER.init();setupPhysics();
   backroomLoaded=await loadBackroomEnvironment();
-  // The imported maze's original spawn faces a wall almost immediately. Start in the verified open hall.
-  playerSpawn=backroomLoaded?new THREE.Vector3(0,0,6):cellPos(9,5);
-  enemySpawn=findSafeEnvironmentPosition(cellPos(2,8), CELL);
   navGraph=buildNavigationGraph();
-  if(backroomLoaded)drawBackroomLighting();else drawHospital();
+  if(backroomLoaded){
+    playerSpawn=nearestNavigationPoint(new THREE.Vector3(0,0,6));
+    buildHidingSpots();
+    navGraph=buildNavigationGraph();
+    playerSpawn=nearestNavigationPoint(playerSpawn);
+    enemySpawn=nearestNavigationPoint(cellPos(2,8),[playerSpawn],10);
+    drawBackroomLighting();
+  }else{
+    playerSpawn=cellPos(9,5);enemySpawn=cellPos(2,8);drawHospital();
+  }
   buildSignalStations();buildReceiverConsole();
   await loadOptionalAssets();
   $('loading-screen').classList.add('hidden');
@@ -923,6 +1001,13 @@ if (import.meta.env.DEV || new URLSearchParams(window.location.search).has('smok
     get backroomLoaded() { return backroomLoaded; },
     get finaleActive() { return finaleActive; },
     get relayCount() { return signalStations.filter(item=>item.userData.activated).length; },
+    get enemyPosition() { return enemyGroup ? {x:enemyGroup.position.x,y:enemyGroup.position.y,z:enemyGroup.position.z} : null; },
+    get enemyMode() { return enemyMode; },
+    get hidden() { return isPlayerHidden; },
+    get hidingSpotCount() { return hidingSpots.length; },
+    get navigationNodeCount() { return backroomLoaded ? navWorldPoints.size : walkable.size; },
+    startHunterTestChase() { enemyMode='CHASE';lastKnown.copy(camera.position);planPath(camera.position);pathClock=0;return {mode:enemyMode,pathLength:enemyPath.length}; },
+    advanceHunterForTest(frames=30) { const count=Math.max(1,Math.min(180,Math.floor(frames))),dt=1/60;for(let i=0;i<count;i++){if(state!=='playing')break;updateEnemy(dt);}return this.enemyPosition; },
     get enemyPosition() { return enemyGroup ? {x:enemyGroup.position.x,y:enemyGroup.position.y,z:enemyGroup.position.z} : null; },
     get enemyMode() { return enemyMode; },
     get hidden() { return isPlayerHidden; },
