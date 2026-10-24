@@ -767,7 +767,8 @@ async function initialise() {
   $('loading-screen').classList.remove('hidden');
   setupRenderer();await RAPIER.init();setupPhysics();
   backroomLoaded=await loadBackroomEnvironment();
-  playerSpawn=findSafeEnvironmentPosition(cellPos(9,5), CELL, 1.15);
+  // The imported maze's original spawn faces a wall almost immediately. Start in the verified open hall.
+  playerSpawn=backroomLoaded?new THREE.Vector3(0,0,6):cellPos(9,5);
   enemySpawn=findSafeEnvironmentPosition(cellPos(2,8), CELL);
   navGraph=buildNavigationGraph();
   if(backroomLoaded)drawBackroomLighting();else drawHospital();
