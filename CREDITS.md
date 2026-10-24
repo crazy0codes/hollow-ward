@@ -1,34 +1,39 @@
 # Asset and dependency credits
 
-## External 3D assets
+## User-supplied GLB models
 
-### RobotExpressive.glb
+The following four models were supplied by the user in this conversation. Their binaries are packaged in the accompanying HollowWard_Backrooms_Assets.zip bundle, but are not yet committed to the repository itself.
 
-- Direct file: <https://raw.githubusercontent.com/mrdoob/three.js/eba30de865cfbf31ac736f792defd9a60ff28d57/examples/models/gltf/RobotExpressive/RobotExpressive.glb>
-- Upstream project/model notes: <https://github.com/mrdoob/three.js/blob/dev/examples/models/gltf/RobotExpressive/README.md>
+- psx_-_backroom.glb — primary environment. The source reads this file as the preferred playable environment.
+- modular_kit_horror_house_104_pieces.glb — optional finale environment; metadata lists an animation named Front door open.
+- the_human_deer.glb — preferred hunter; metadata lists an embedded animation named Take 001.
+- Meshy_AI_Character_output.glb — secondary apparition; no embedded animation clips were found, so the prototype animates the scare procedurally.
+
+These assets are user-provided. Their original author/source and distribution licences were not supplied in this conversation and have not been independently verified. Confirm the licences before public redistribution.
+
+## RobotExpressive.glb fallback
+
+- Direct file: https://raw.githubusercontent.com/mrdoob/three.js/eba30de865cfbf31ac736f792defd9a60ff28d57/examples/models/gltf/RobotExpressive/RobotExpressive.glb
+- Upstream model notes: https://github.com/mrdoob/three.js/blob/dev/examples/models/gltf/RobotExpressive/README.md
 - Model by Tomás Laulhé; modifications by Don McCurdy as described in the upstream README.
 - Licence: CC0 1.0 Universal, per upstream README.
-- Download status: fetched and SHA-256-verified on the hosted GitHub Actions runner during the production build (453.1 KiB). The binary is not committed; `scripts/fetch-assets.mjs` downloads the pinned file and verifies SHA-256 `047f5e5fb3bb6d378bd1df16ca6137f2a596c99b3a1b5690b4020c05aaf6f319` on first run.
+- The build helper downloads the pinned file and verifies its SHA-256 if network access is available.
 
-### Corridor floor tile
+## Optional corridor floor tile
 
-- Direct file: <https://cdn.3dassets.dev/assets/23660/v1/model.glb>
-- Asset page: <https://3dassets.dev/assets/hospital-wards-and-clinic-operations-corridor-floor-ti-6eaa09ac>
+- Direct file: https://cdn.3dassets.dev/assets/23660/v1/model.glb
+- Asset page: https://3dassets.dev/assets/hospital-wards-and-clinic-operations-corridor-floor-ti-6eaa09ac
 - Licence: CC0 1.0 Universal, as stated on the asset page.
-- Download status: failed on the hosted GitHub Actions runner with a fetch error from the configured URL. The game treats it as optional; the URL should be repaired before relying on this asset.
+- This asset is optional; its download failed on an earlier hosted build.
 
 ## Audio
 
-No external audio file is distributed in this revision. Ambient drone, footsteps, pickup tones, heartbeat and stingers are synthesized by browser Web Audio through Three.js `AudioListener`. This keeps the build from referencing unverified or inaccessible audio files, but is a documented deviation from the original internet-asset preference.
-
-## Project-specific geometry
-
-Walls, floors, keys, nurse desk, beds, trolleys, door, curtains and stains are game-specific low-poly meshes composed from Three.js geometry. They are not external asset-pack files. The imported corridor tile is an optional floor detail; the imported CC0 rig is the preferred stalker model when the asset download succeeds. If the rig is missing, the game falls back to a non-box humanoid made from capsules and spheres.
+No external audio file is distributed in this revision. Ambient drone, footsteps, heartbeat and short stingers are synthesized through browser Web Audio. Recorded voices and a full horror soundscape remain future work.
 
 ## Libraries
 
-- Three.js — MIT: <https://github.com/mrdoob/three.js/blob/dev/LICENSE>
-- Rapier (`@dimforge/rapier3d-compat`) — Apache-2.0: <https://github.com/dimforge/rapier.js>
-- Yuka — MIT: <https://github.com/Mugen87/yuka>
-- postprocessing — MIT: <https://github.com/pmndrs/postprocessing>
-- Vite — MIT: <https://github.com/vitejs/vite>
+- Three.js — MIT: https://github.com/mrdoob/three.js/blob/dev/LICENSE
+- Rapier (@dimforge/rapier3d-compat) — Apache-2.0: https://github.com/dimforge/rapier.js
+- Yuka — MIT: https://github.com/Mugen87/yuka
+- postprocessing — MIT: https://github.com/pmndrs/postprocessing
+- Vite — MIT: https://github.com/vitejs/vite
