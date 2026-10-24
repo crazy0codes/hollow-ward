@@ -15,34 +15,34 @@
       <section id="title-screen" class="screen screen-visible">
         <div class="eyebrow">NIGHT SHIFT // 02:17 AM</div>
         <h1>HOLLOW<br /><span>WARD</span></h1>
-        <p class="subtitle">THE BUILDING DOESN'T WANT YOU TO LEAVE.</p>
+        <p class="subtitle">THE ROOM IS LEARNING YOUR VOICE.</p>
         <div class="story-card">
-          <p>You wake beneath a dead monitor at St. Agnes. At 2:17 AM, a disconnected intercom uses your voice to announce a containment breach.</p>
-          <p>Three incident tapes document the experiment. Recover them, override the north security door, and never trust a voice asking you to come closer.</p>
+          <p>You wake inside an impossible backroom at 2:17 AM. The emergency signal is playing your voice, but the speakers have been cut from the wall.</p>
+          <p>Three echo relays are keeping the room in phase. Synchronizing them will draw the thing closer. Reach the receiver, invert the signal, and learn why it already knows your home.</p>
         </div>
-        <button id="start-button" class="primary-button">ENTER THE WARD <span>↗</span></button>
+        <button id="start-button" class="primary-button">ENTER THE BACKROOM <span>↗</span></button>
         <div class="menu-footer">WASD MOVE <i>•</i> MOUSE LOOK <i>•</i> SHIFT RUN <i>•</i> F FLASHLIGHT <i>•</i> E INTERACT</div>
       </section>
       <section id="pause-screen" class="screen hidden">
         <div class="eyebrow">SIGNAL INTERRUPTED</div>
         <h2>PAUSED</h2>
-        <p>The ward is waiting.</p>
+        <p>The room is listening.</p>
         <button id="resume-button" class="primary-button">RETURN TO THE WARD</button>
         <button id="restart-button" class="quiet-button">RESTART NIGHT SHIFT</button>
       </section>
       <section id="end-screen" class="screen hidden">
-        <div class="eyebrow" id="end-eyebrow">ST. AGNES // INCIDENT REPORT</div>
+        <div class="eyebrow" id="end-eyebrow">ECHO // SIGNAL REPORT</div>
         <h2 id="end-title">YOU GOT OUT</h2>
         <p id="end-copy"></p>
         <button id="play-again-button" class="primary-button">PLAY AGAIN</button>
       </section>
       <div id="hud" class="hidden" aria-live="polite">
         <div class="hud-top">
-          <div class="objective"><span class="hud-label">OBJECTIVE</span><strong id="objective-text">Recover the three incident tapes</strong><div class="objective-progress" id="evidence-pips"><i></i><i></i><i></i></div></div>
+          <div class="objective"><span class="hud-label">OBJECTIVE</span><strong id="objective-text">Synchronize echo relays (0/3)</strong><div class="objective-progress" id="signal-pips"><i></i><i></i><i></i></div></div>
           <div class="battery"><span class="hud-label">FLASHLIGHT</span><strong id="battery-number">100%</strong><div class="battery-track"><div id="battery-fill"></div></div></div>
         </div>
         <div id="crosshair"><i></i><b></b></div>
-        <div id="interaction-prompt" class="hidden"><kbd>E</kbd><span id="interaction-text">Play incident tape</span></div>
+        <div id="interaction-prompt" class="hidden"><kbd>E</kbd><span id="interaction-text">Synchronize echo relay</span></div>
         <div id="message" class="message hidden"></div>
         <div id="threat-indicator" class="threat-indicator"><span></span> YOU ARE NOT ALONE</div>
         <div class="hud-bottom"><span id="location-label">ST. AGNES / RECOVERY WING</span><span>F FLASHLIGHT <i>•</i> E INTERACT <i>•</i> ESC PAUSE</span></div>
