@@ -439,7 +439,7 @@ function buildBackroomNavigationGraph() {
   navWorldPoints.clear(); navGridLookup.clear();
   const graph = new YUKA.Graph();
   if (!backroomBounds) return graph;
-  const spacing = 1.8, margin = 1.35;
+  const spacing = 1.1, margin = .9;
   const minX = backroomBounds.min.x + margin, maxX = backroomBounds.max.x - margin;
   const minZ = backroomBounds.min.z + margin, maxZ = backroomBounds.max.z - margin;
   const columns = Math.floor((maxX - minX) / spacing) + 1;
@@ -796,7 +796,7 @@ function canSeePlayer() {
   if(dist>15)return false;
   raycaster.set(origin,delta.normalize());raycaster.far=dist-.4;return raycaster.intersectObjects(wallVisuals,false).length===0;
 }
-function planPath(target){enemyPath=findPath(enemyGroup.position,target);enemyPathIndex=enemyPath.length>1?1:0;}
+function planPath(target){enemyPath=findPath(enemyGroup.position,target);enemyPathIndex=backroomLoaded?0:(enemyPath.length>1?1:0);}
 function choosePatrol() {
   if (backroomLoaded && navWorldPoints.size) {
     const here = enemyGroup.position;
