@@ -2,36 +2,41 @@
 
 ## Current scope
 
-Hollow Ward is a browser-based first-person horror prototype built with Three.js, Rapier, Yuka, and Vite. The current playable slice is one connected hospital wing, three incident-tape interactions, a roaming hunter with patrol/chase/search states, a flashlight, and a security-door ending. It is not yet the complete multi-chapter game in the story bible.
+Hollow Ward is a browser-based first-person horror prototype using Three.js, Rapier, Yuka, and Vite. The current source replaces the key hunt with three echo relays and a central inversion receiver. It attempts to load the user-supplied Backrooms environment, deer hunter, secondary apparition, and modular-house finale, with a procedural level fallback if the environment asset is missing.
 
-## Recent code changes
+## Implemented source changes
 
-- Replaced the three-key hunt with three incident tapes documenting Project ECHO and Subject 09.
-- Added loading paths for the user-provided `the_human_deer.glb` (preferred animated hunter) and `Meshy_AI_Character_output.glb` (secondary procedural-lunge apparition).
-- Uses the deer model's embedded 6.25-second animation clip; the same clip plays faster while the hunter is chasing.
-- Added a timed apparition lunge. If the hunter is too close, the scare is postponed briefly instead of continually pushing its trigger farther into the future.
-- Retained the included RobotExpressive model and primitive hunter as fallbacks.
+- Replaced key collection with three interactive signal relays. Activating a relay changes its light state and raises threat; activating all three makes the hunter more aggressive.
+- Added an ECHO inversion receiver. It rejects partial activation and triggers a short finale when all three relays are active.
+- Added a loader for psx_-_backroom.glb and creates Rapier triangle-mesh colliders from its meshes.
+- Added a loader for modular_kit_horror_house_104_pieces.glb and attempts to play its Front door open animation during the finale.
+- Added a loader for the_human_deer.glb as the preferred hunter and Meshy_AI_Character_output.glb as a separate procedural-lunge apparition.
+- Updated title UI, interaction labels, story bible, README, level-check goals, and asset placement instructions.
+- Retained the prior procedural level and hunter as fallbacks.
 
-## Build and movement checks
+## Verification status
 
-The latest completed green browser test at the time of writing is [GitHub Actions run 40085061728](https://github.com/crazy0codes/hollow-ward/actions/runs/40085061728). On that commit, `npm run check`, the Vite production build, and a Chromium smoke test completed successfully. The smoke test reported movement on both axes and no captured page errors. Later test-harness-only and apparition-timer updates trigger additional workflow runs; check the Actions page for their latest state.
+The latest previously completed green browser movement test is [GitHub Actions run 40085061728](https://github.com/crazy0codes/hollow-ward/actions/runs/40085061728). It verified forward/right movement in Chromium on an earlier source revision. The Backrooms/relay changes have their own workflow run at [GitHub Actions](https://github.com/crazy0codes/hollow-ward/actions); check the latest commit's run before treating this revision as validated.
 
-Passing a smoke test is not the same as a complete playtest. These remain unverified:
-- A full 10–15 minute run and balanced scare frequency.
-- Wall collision and all routes during real interactive play.
-- Every win/lose/restart path with the new evidence objective.
-- Custom GLB rendering in the deployed site.
-- The precise commit currently served by Netlify.
+The following are not yet verified end-to-end:
+- Scale and alignment of the imported Backrooms environment in the running browser.
+- Walkable/collidable relay locations within that real layout.
+- Hunter route-finding around the Backrooms walls; its current path graph is still based on the former grid and needs refinement against the imported layout.
+- Whether the modular house loads at an appropriate scale/framing and its door animation is visible to the player.
+- All start/pause/restart and terminal-state paths after the new finale.
+- The live Netlify deployment's current commit and custom-model availability.
 
-## Custom GLB deployment requirement
+## Binary asset installation
 
-The two uploaded binary models are **not yet committed to this repository**, because the available GitHub file editing route used for the source does not accept local binary uploads. Download the prepared asset archive from this conversation, extract the two GLBs into `public/assets/`, then commit/push them to `main`:
+The four uploaded GLBs are packaged in the downloadable asset bundle from this conversation. They are not yet committed to the remote Git tree, because the available GitHub file-editing actions can change text files but cannot transmit these local binary files directly. Extract the four GLBs into public/assets/ and commit them:
 
-- `public/assets/the_human_deer.glb`
-- `public/assets/Meshy_AI_Character_output.glb`
+- public/assets/psx_-_backroom.glb
+- public/assets/modular_kit_horror_house_104_pieces.glb
+- public/assets/the_human_deer.glb
+- public/assets/Meshy_AI_Character_output.glb
 
-Until those files are present at those exact paths, the source falls back to the included model and the custom creature/apparition will not appear. Once they are committed, allow Netlify to rebuild and verify the live page manually.
+Then run npm install, npm run check, npm run build, and npm run test:browser. Play the level and verify collisions, relay positions, pursuit behaviour, and the house-door finale. Only after that should the uploaded models be considered integrated into the live deployment.
 
 ## Release verdict
 
-**Prototype updated; end-to-end validation is incomplete.** The source changes are in the GitHub repository, but the uploaded binaries still need to be added. Do not describe the multi-chapter story, polished cinematic scenes, voice acting, or multiple branching endings as implemented yet.
+**Source updated; gameplay and asset integration are still in validation.** Do not describe this as the completed multi-chapter game: the full conspiracy story, recorded voice acting, authored environmental scare sequences, branching endings, and end-to-end playthrough are not finished.
