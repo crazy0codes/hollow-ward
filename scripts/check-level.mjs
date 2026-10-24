@@ -26,9 +26,9 @@ if (reachable.size !== allWalkable.length) {
   const isolated = allWalkable.filter(([r, c]) => !reachable.has(String(r) + ',' + String(c)));
   throw new Error('Found unreachable walkable cells: ' + isolated.map(([r,c]) => String(r) + ',' + String(c)).join(' '));
 }
-const goals = [[2, 1], [2, 8], [8, 2], [0, 5]];
+const goals = [[2, 1], [2, 8], [8, 2], [5, 5]];
 for (const [r, c] of goals) {
   if (!open(r, c)) throw new Error('Goal is not walkable at row ' + r + ', col ' + c);
   if (!reachable.has(String(r) + ',' + String(c))) throw new Error('Goal is unreachable at row ' + r + ', col ' + c);
 }
-console.log('Level check passed: ' + rows + 'x' + cols + ', ' + allWalkable.length + ' walkable cells; spawn, all 3 incident tapes and the exit are connected.');
+console.log('Level check passed: ' + rows + 'x' + cols + ', ' + allWalkable.length + ' walkable cells; spawn, all 3 echo relays and the receiver are connected.');
