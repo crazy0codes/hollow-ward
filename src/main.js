@@ -36,8 +36,9 @@ const M = {
 let scene, camera, renderer, composer, controls, world, kcc, playerBody, playerCollider, navGraph;
 let flashlight, flashlightTarget, flashlightOn = true, battery = 100, exitDoor, exitPivot, exitCollider, exitOpen = false;
 let enemyGroup, enemyModel, enemyLight, enemyMixer, enemyClips = {}, enemyFallback = false, enemyProcedural = false, enemyAssetName = 'procedural hunter';
+let backroomLoaded = false, backroomGroup = null, houseGroup = null, houseMixer = null, finaleActive = false, finaleClock = 0;
 let apparitionGroup, apparitionModel, apparitionActive = false, apparitionClock = 0, nextApparitionAt = 32;
-let evidenceItems = [], interactive = [], wallVisuals = [], lamps = [], nearestInteractable = null, wallParts = [], trimParts = [];
+let signalStations = [], interactive = [], wallVisuals = [], lamps = [], nearestInteractable = null, wallParts = [], trimParts = [];
 let state = 'menu', elapsed = 0, messageTimer = 0, threat = 0, verticalSpeed = 0, bob = 0, footstep = 0, initializationError = null, frameCount = 0;
 let lastDesired = { x: 0, y: 0, z: 0 }, lastActual = { x: 0, y: 0, z: 0 };
 let enemyMode = 'LURK', enemyPath = [], enemyPathIndex = 0, patrolTarget = null, pathClock = 0, searchClock = 0;
@@ -99,7 +100,7 @@ function drawHospital() {
   scene.add(new THREE.Mesh(mergeGeometries(floorParts, false), M.floor));
   scene.add(new THREE.Mesh(mergeGeometries(ceilingParts, false), M.ceiling));
   for (const [r, c, power] of [[1,2,.72],[1,7,.45],[3,5,.6],[5,3,.65],[5,7,.4],[8,2,.35],[8,7,.52]]) addLamp(r, c, power);
-  buildBeds(); buildNurseStation(); buildCurtains(); buildExit();
+  buildBeds(); buildCurtains();
 }
 function buildBeds() {
   for (const b of [{ r:1,c:2,rot:0 }, { r:1,c:7,rot:Math.PI/2 }, { r:3,c:5,rot:Math.PI/2 }, { r:8,c:2,rot:0 }]) {
@@ -157,32 +158,149 @@ function createExitCollider() {
   exitCollider = world.createCollider(RAPIER.ColliderDesc.cuboid(1.18,1.46,.14),body);
 }
 function removeExitCollider() { if (exitCollider) { world.removeCollider(exitCollider,true); exitCollider = null; } }
-function buildEvidence() {
+function buildSignalStations() {
   const spots = [
-    { row:2,col:1,name:'INCIDENT TAPE 01',note:'TAPE 01 // OBSERVATION: “The subject answers voices from disconnected speakers. Staff are ordered not to respond. The voice it uses may belong to someone who is still alive.”' },
-    { row:2,col:8,name:'INCIDENT TAPE 02',note:'TAPE 02 // INTERNAL MEMO: “We did not summon it. We constructed a receiver from recorded neural patterns. It learned to imitate the dead before it learned to imitate us.”' },
-    { row:8,col:2,name:'INCIDENT TAPE 03',note:'TAPE 03 // FINAL DIRECTIVE: “Subject 09 is not a patient. It is the breach. Do not let it hear the evacuation sequence. Do not let it reach the surface.”' },
+    { row:2, col:1, name:'WEST ECHO RELAY', phase:'PHASE 01 // LOCAL MEMORY' },
+    { row:2, col:8, name:'NORTH ECHO RELAY', phase:'PHASE 02 // LIVE VOICE' },
+    { row:8, col:2, name:'LOWER ECHO RELAY', phase:'PHASE 03 // SUBJECT 09' },
   ];
-  evidenceItems = spots.map((s,i) => {
-    const p = cellPos(s.row,s.col), group = new THREE.Group(), homeY=.7;
-    group.position.set(p.x+(i-1)*.25,homeY,p.z-.45);
-    // A battered field recorder/cassette, not a collectible key.
-    box(.46,.12,.29,M.darkWall,new THREE.Vector3(0,0,0),group);
-    box(.36,.035,.21,M.metal,new THREE.Vector3(0,.078,0),group);
-    box(.23,.024,.045,M.trim,new THREE.Vector3(0,.108,.055),group);
-    for(const side of [-1,1]) {
-      cylinder(.036,.036,M.darkWall,new THREE.Vector3(side*.105,.108,-.045),group,10);
-      cylinder(.018,.018,M.trim,new THREE.Vector3(side*.105,.13,-.045),group,8);
+  signalStations = spots.map((s,i) => {
+    const p = cellPos(s.row,s.col), group = new THREE.Group();
+    group.position.set(p.x,0,p.z);
+    box(.56,.72,.56,M.darkWall,new THREE.Vector3(0,.36,0),group);
+    box(.76,.12,.7,M.metal,new THREE.Vector3(0,.77,0),group);
+    box(.55,.35,.08,M.dark,new THREE.Vector3(0,1.01,-.18),group);
+    const status = new THREE.MeshStandardMaterial({color:0x4a151b,emissive:0x9c111d,emissiveIntensity:.12,roughness:.35,metalness:.3});
+    const panel = box(.38,.16,.035,status,new THREE.Vector3(0,1.03,-.13),group);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(.16,.025,7,18),M.metal);
+    ring.position.set(0,1.38,0); ring.rotation.x=Math.PI/2; group.add(ring);
+    const orbMaterial = new THREE.MeshStandardMaterial({color:0x8c2026,emissive:0xa10c18,emissiveIntensity:.5,roughness:.24});
+    const orb = new THREE.Mesh(new THREE.IcosahedronGeometry(.105,1),orbMaterial);
+    orb.position.set(0,1.38,0); group.add(orb);
+    const glow = new THREE.PointLight(0x9c141e,.24,3,2); glow.position.set(0,1.45,0); group.add(glow);
+    for (const side of [-1,1]) {
+      cylinder(.025,.26,M.trim,new THREE.Vector3(side*.28,1.02,-.18),group,7);
     }
-    box(.065,.022,.025,M.rust,new THREE.Vector3(.12,.11,-.075),group);
-    const ledMaterial = new THREE.MeshStandardMaterial({color:0x9f1823,emissive:0xff0718,emissiveIntensity:2.2,roughness:.3});
-    const led = new THREE.Mesh(new THREE.SphereGeometry(.022,7,6),ledMaterial);
-    led.position.set(-.17,.112,.1);group.add(led);
-    const glow = new THREE.PointLight(0x8d1e24,.22,1.5);glow.position.set(0,.18,0);group.add(glow);
-    group.userData = {targetType:'evidence',evidenceIndex:i,name:s.name,note:s.note,collected:false,homeY,phase:i*2.1};
+    group.userData = {targetType:'station',stationIndex:i,name:s.name,phase:s.phase,activated:false,panel,orb,glow,ring,phaseOffset:i*1.8};
     scene.add(group); interactive.push(group); return group;
   });
-  return evidenceItems;
+  return signalStations;
+}
+function buildReceiverConsole() {
+  const p = cellPos(5,5), group = new THREE.Group();
+  group.position.set(p.x,0,p.z);
+  box(1.15,.82,.8,M.darkWall,new THREE.Vector3(0,.41,0),group);
+  box(1.25,.12,.88,M.metal,new THREE.Vector3(0,.87,0),group);
+  box(.78,.46,.06,M.dark,new THREE.Vector3(0,1.17,-.31),group);
+  const screenMaterial = new THREE.MeshStandardMaterial({color:0x112322,emissive:0x1c6c5b,emissiveIntensity:.36,roughness:.35});
+  box(.6,.29,.035,screenMaterial,new THREE.Vector3(0,1.18,-.265),group);
+  const dial = new THREE.Mesh(new THREE.TorusGeometry(.105,.034,8,18),M.trim);
+  dial.position.set(-.3,1.02,.15); dial.rotation.x=Math.PI/2; group.add(dial);
+  const buttonMaterial = new THREE.MeshStandardMaterial({color:0x631b22,emissive:0x9d0b1b,emissiveIntensity:.22});
+  const button = new THREE.Mesh(new THREE.CylinderGeometry(.09,.11,.07,12),buttonMaterial);
+  button.position.set(.29,1.02,.15);group.add(button);
+  const glow = new THREE.PointLight(0x237c66,.28,3,2);glow.position.set(0,1.35,0);group.add(glow);
+  group.userData={targetType:'receiver',name:'ECHO INVERSION RECEIVER',screenMaterial,buttonMaterial,glow};
+  scene.add(group);interactive.push(group);
+  receiverConsole=group;
+  return group;
+}
+async function loadBackroomEnvironment() {
+  const url='/assets/psx_-_backroom.glb';
+  try {
+    const response=await fetch(url,{method:'HEAD'});
+    if(!response.ok)return false;
+    const gltf=await new GLTFLoader().loadAsync(url);
+    backroomGroup=new THREE.Group();
+    backroomGroup.name='ECHO Backroom Environment';
+    backroomGroup.add(gltf.scene);
+    backroomGroup.updateMatrixWorld(true);
+    const originalBounds=new THREE.Box3().setFromObject(backroomGroup);
+    const originalSize=originalBounds.getSize(new THREE.Vector3());
+    if(originalSize.x<1||originalSize.z<1)throw new Error('Backroom GLB has invalid dimensions');
+    // Fit the imported maze to the current play-space without changing its vertical proportions.
+    backroomGroup.scale.set((COLS*CELL-4)/originalSize.x,1,(ROWS*CELL-2)/originalSize.z);
+    backroomGroup.updateMatrixWorld(true);
+    const scaledBounds=new THREE.Box3().setFromObject(backroomGroup);
+    backroomGroup.position.x-= (scaledBounds.min.x+scaledBounds.max.x)/2;
+    backroomGroup.position.z-= (scaledBounds.min.z+scaledBounds.max.z)/2;
+    backroomGroup.position.y-= scaledBounds.min.y;
+    backroomGroup.updateMatrixWorld(true);
+    backroomGroup.traverse(node=>{
+      if(!node.isMesh)return;
+      node.castShadow=false;node.receiveShadow=false;
+      node.frustumCulled=true;
+      // Double-sided walls also make ray-based line-of-sight work from the inside of the maze.
+      const makeDoubleSided=m=>{const c=m.clone();c.side=THREE.DoubleSide;return c;};
+      node.material=Array.isArray(node.material)?node.material.map(makeDoubleSided):makeDoubleSided(node.material);
+      wallVisuals.push(node);
+      const geometry=node.geometry,position=geometry.attributes.position;
+      if(!position||position.count<3)return;
+      const vertices=new Float32Array(position.count*3),v=new THREE.Vector3();
+      for(let i=0;i<position.count;i++){
+        v.fromBufferAttribute(position,i).applyMatrix4(node.matrixWorld);
+        vertices[i*3]=v.x;vertices[i*3+1]=v.y;vertices[i*3+2]=v.z;
+      }
+      const rawIndices=geometry.index?geometry.index.array:Array.from({length:position.count},(_,i)=>i);
+      const indices=Uint32Array.from(rawIndices);
+      try {
+        const body=world.createRigidBody(RAPIER.RigidBodyDesc.fixed());
+        world.createCollider(RAPIER.ColliderDesc.trimesh(vertices,indices),body);
+      } catch(error) {
+        console.warn('Skipped one invalid backroom collision mesh.',error);
+      }
+    });
+    scene.add(backroomGroup);
+    backroomLoaded=true;
+    return true;
+  } catch(error) {
+    console.warn('Backroom GLB unavailable; using procedural fallback level.',error);
+    backroomGroup=null;backroomLoaded=false;return false;
+  }
+}
+function drawBackroomLighting() {
+  for(const [r,c,power] of [[1,2,.72],[1,7,.48],[3,5,.42],[5,3,.58],[5,7,.38],[8,2,.46],[8,7,.5]])addLamp(r,c,power);
+  // Sparse soundless emergency beacons give orientation without turning the maze into a bright map.
+  for(const [r,c] of [[2,1],[2,8],[8,2]]) {
+    const p=cellPos(r,c);
+    const beacon=new THREE.PointLight(0x9c1825,.14,2.6,2);beacon.position.set(p.x,.28,p.z);scene.add(beacon);
+  }
+}
+async function loadFinalHouse() {
+  if(houseGroup)return true;
+  const url='/assets/modular_kit_horror_house_104_pieces.glb';
+  try {
+    const response=await fetch(url,{method:'HEAD'});
+    if(!response.ok)return false;
+    const gltf=await new GLTFLoader().loadAsync(url);
+    houseGroup=new THREE.Group();houseGroup.name='False Home';
+    houseGroup.add(gltf.scene);
+    houseGroup.updateMatrixWorld(true);
+    const bounds=new THREE.Box3().setFromObject(houseGroup),size=bounds.getSize(new THREE.Vector3());
+    const scale=4.8/Math.max(.2,size.y);
+    houseGroup.scale.setScalar(scale);
+    houseGroup.updateMatrixWorld(true);
+    const scaledBounds=new THREE.Box3().setFromObject(houseGroup);
+    const look=new THREE.Vector3();camera.getWorldDirection(look);look.y=0;
+    if(look.lengthSq()<.01)look.set(0,0,-1);look.normalize();
+    const target=camera.position.clone().addScaledVector(look,13.5);
+    houseGroup.position.x+=target.x-(scaledBounds.min.x+scaledBounds.max.x)/2;
+    houseGroup.position.z+=target.z-(scaledBounds.min.z+scaledBounds.max.z)/2;
+    houseGroup.position.y-=scaledBounds.min.y;
+    houseGroup.visible=true;
+    houseGroup.traverse(node=>{if(node.isMesh){node.castShadow=false;node.receiveShadow=false;}});
+    scene.add(houseGroup);
+    if(gltf.animations?.length){
+      houseMixer=new THREE.AnimationMixer(houseGroup);
+      const clip=gltf.animations.find(a=>a.name.toLowerCase().includes('front door'))||gltf.animations[0];
+      const action=houseMixer.clipAction(clip);
+      action.setLoop(THREE.LoopOnce,1);action.clampWhenFinished=true;action.play();
+    }
+    return true;
+  } catch(error) {
+    console.warn('Optional house finale model could not be loaded.',error);
+    houseGroup=null;houseMixer=null;return false;
+  }
 }
 function buildNavigationGraph() {
   const graph = new YUKA.Graph();
@@ -288,26 +406,21 @@ async function loadOptionalAssets() {
     enemyAssetName = 'procedural hunter (asset fallback)';
   }
 
-  // The rigged Meshy character is used as a one-frame apparition. It has no embedded clip,
-  // so the scare is animated by a controlled lunge and scale pulse.
-  if (hasDeer) {
-    const apparitionGltf = await tryLoad('/assets/Meshy_AI_Character_output.glb');
-    if (apparitionGltf) {
-      apparitionGroup = new THREE.Group();
-      apparitionModel = apparitionGltf.scene;
-      apparitionModel.traverse(node => {
-        if (node.isMesh) { node.castShadow = false; node.receiveShadow = false; }
-      });
-      apparitionModel.updateMatrixWorld(true);
-      const bounds = new THREE.Box3().setFromObject(apparitionModel);
-      const height = Math.max(.1, bounds.max.y - bounds.min.y);
-      const scale = 1.82 / height;
-      apparitionModel.scale.setScalar(scale);
-      apparitionModel.position.y = -bounds.min.y * scale;
-      apparitionGroup.add(apparitionModel);
-      apparitionGroup.visible = false;
-      scene.add(apparitionGroup);
-    }
+  // Load the secondary rig independently. It has no embedded clips, so its apparition lunge is procedural.
+  const apparitionGltf = await tryLoad('/assets/Meshy_AI_Character_output.glb');
+  if (apparitionGltf) {
+    apparitionGroup = new THREE.Group();
+    apparitionModel = apparitionGltf.scene;
+    apparitionModel.traverse(node => { if(node.isMesh){node.castShadow=false;node.receiveShadow=false;} });
+    apparitionModel.updateMatrixWorld(true);
+    const bounds = new THREE.Box3().setFromObject(apparitionModel);
+    const height = Math.max(.1,bounds.max.y-bounds.min.y);
+    const scale = 1.82/height;
+    apparitionModel.scale.setScalar(scale);
+    apparitionModel.position.y = -bounds.min.y*scale;
+    apparitionGroup.add(apparitionModel);
+    apparitionGroup.visible=false;
+    scene.add(apparitionGroup);
   }
 
   enemyLight = new THREE.PointLight(0xb00b1b,.75,3,2);
@@ -396,20 +509,26 @@ function setThreat(value) {
 }
 function updateHud() {
   $('battery-number').textContent=Math.ceil(battery)+'%'; $('battery-fill').style.width=battery+'%'; $('battery-fill').style.background=battery<22?'#bd343b':'#c4bca6';
-  const count=evidenceItems.filter(item=>item.userData.collected).length;
-  [...$('evidence-pips').children].forEach((pip,i)=>pip.classList.toggle('filled',i<count));
-  $('objective-text').textContent=count<3?'Recover incident tapes ('+count+'/3)':'Use the north security override';
+  const count=signalStations.filter(item=>item.userData.activated).length;
+  [...$('signal-pips').children].forEach((pip,i)=>pip.classList.toggle('filled',i<count));
+  $('objective-text').textContent=count<3?'Synchronize echo relays ('+count+'/3)':'Return to the inversion receiver';
   $('location-label').textContent=enemyMode==='CHASE'?'ST. AGNES / MOVEMENT DETECTED':'ST. AGNES / RECOVERY WING';
 }
 function startRun() {
   if(!world||!controls)return;
-  state='playing';elapsed=0;battery=100;flashlightOn=true;flashlight.visible=true;exitOpen=false;enemyMode='LURK';threat=0;searchClock=0;pathClock=0;verticalSpeed=0;bob=0;footstep=0;apparitionActive=false;apparitionClock=0;nextApparitionAt=32;if(apparitionGroup)apparitionGroup.visible=false;
-  for(const item of evidenceItems){item.userData.collected=false;item.visible=true;item.position.y=item.userData.homeY;item.rotation.y=0;}
-  if(exitPivot)exitPivot.rotation.y=0;if(!exitCollider)createExitCollider();
+  state='playing';elapsed=0;battery=100;flashlightOn=true;flashlight.visible=true;exitOpen=false;finaleActive=false;finaleClock=0;enemyMode='LURK';threat=0;searchClock=0;pathClock=0;verticalSpeed=0;bob=0;footstep=0;apparitionActive=false;apparitionClock=0;nextApparitionAt=32;
+  if(apparitionGroup)apparitionGroup.visible=false;
+  if(houseGroup){scene.remove(houseGroup);houseGroup=null;houseMixer=null;}
+  for(const station of signalStations){
+    station.userData.activated=false;station.userData.panel.material.emissiveIntensity=.12;station.userData.panel.material.color.set(0x4a151b);
+    station.userData.orb.material.emissiveIntensity=.5;station.userData.orb.material.color.set(0x8c2026);
+    station.userData.glow.intensity=.24;station.userData.ring.material=M.metal;
+  }
+  if(receiverConsole){receiverConsole.userData.screenMaterial.emissiveIntensity=.36;receiverConsole.userData.glow.intensity=.28;receiverConsole.userData.buttonMaterial.emissiveIntensity=.22;}
   const start=cellPos(9,5);playerBody.setTranslation({x:start.x,y:.88,z:start.z},true);
   enemyGroup.position.copy(cellPos(2,8));enemyPath=[];enemyPathIndex=0;patrolTarget=null;lastKnown.copy(start);
   $('title-screen').classList.add('hidden');$('pause-screen').classList.add('hidden');$('end-screen').classList.add('hidden');$('hud').classList.remove('hidden');$('interaction-prompt').classList.add('hidden');
-  updateHud();initAudio();controls.lock();showMessage('Recover the incident tapes. Do not answer any voice calling your name.',4.5);
+  updateHud();initAudio();controls.lock();showMessage('Do not escape. Break the broadcast before it learns your name.',4.5);
 }
 function pauseRun(){if(state!=='playing')return;state='paused';$('pause-screen').classList.remove('hidden');$('hud').classList.add('hidden');}
 function resumeRun(){state='playing';$('pause-screen').classList.add('hidden');$('hud').classList.remove('hidden');controls.lock();}
@@ -417,15 +536,33 @@ function endRun(won) {
   if(state==='won'||state==='lost')return;state=won?'won':'lost';controls.unlock();$('hud').classList.add('hidden');$('pause-screen').classList.add('hidden');$('end-screen').classList.remove('hidden');
   $('end-eyebrow').textContent=won?'ST. AGNES // DISCHARGE PAPERS':'ST. AGNES // INCIDENT REPORT';
   $('end-title').textContent=won?'YOU GOT OUT.':'PATIENT NOT FOUND.';
-  $('end-copy').textContent=won?'The override releases the door. On the dead monitor, one final line appears: SUBJECT 09 HAS LEFT CONTAINMENT. The intercom crackles in your own voice: “All staff report to Ward 09. The patient has escaped.” The broadcast continues after the screen goes black.':'The Attendant reaches you. The intercom announces: “Subject 09 returned to containment.” A monitor starts beeping beneath the silence.';
+  $('end-copy').textContent=won?'The receiver accepts the inversion. The maze goes silent. Then a front door opens somewhere inside the backroom. The monitor prints: SUBJECT 09 HAS BEEN COPIED. The intercom speaks in your voice, from somewhere behind you: “Welcome home.”':'The Attendant reaches you. The intercom announces: “Subject 09 returned to containment.” A monitor begins beeping beneath the silence.';
   cue(won?'door':'sting',won?.12:.3);
 }
 function toggleFlashlight(){if(state!=='playing')return;if(battery<=.5){flashlightOn=false;flashlight.visible=false;showMessage('The flashlight battery is dead.',1.8);cue('click');return;}flashlightOn=!flashlightOn;flashlight.visible=flashlightOn;cue('click',.08);}
 function interact(target) {
-  if(!target)return;const data=target.userData||{};
-  if(data.targetType==='evidence'){if(data.collected)return;data.collected=true;target.visible=false;showMessage(data.note,6);cue('pickup',.18);updateHud();if(evidenceItems.every(item=>item.userData.collected))showMessage('All three tapes recovered. The north security override is exposed. Use the exit panel.',4.5);return;}
-  if(data.targetType==='note'){showMessage('NURSE’S NOTE: “If you hear it running, stay quiet. If the lights turn red, do not look behind you.”',6);cue('pickup',.1);return;}
-  if(data.targetType==='exit'){const count=evidenceItems.filter(item=>item.userData.collected).length;if(count<3){showMessage('OVERRIDE DENIED. Incident tapes missing ('+count+'/3).',2.6);cue('click',.08);return;}if(!exitOpen){exitOpen=true;removeExitCollider();showMessage('SECURITY OVERRIDE ACCEPTED. The door is opening. RUN.',3.4);cue('door',.24);}}
+  if(!target)return;
+  const data=target.userData||{};
+  if(data.targetType==='station'){
+    if(data.activated){showMessage(data.name+' is already synchronized. It is still listening.',2.6);return;}
+    data.activated=true;
+    data.panel.material.color.set(0x6f2029);data.panel.material.emissiveIntensity=1.6;
+    data.orb.material.color.set(0xf03a48);data.orb.material.emissiveIntensity=3.2;
+    data.glow.color.set(0xe51d31);data.glow.intensity=1.25;
+    data.ring.material=new THREE.MeshStandardMaterial({color:0xb73842,emissive:0x67111b,emissiveIntensity:.9,metalness:.55,roughness:.3});
+    cue('pickup',.22);
+    setThreat(Math.max(threat,.18+signalStations.filter(item=>item.userData.activated).length*.17));
+    const count=signalStations.filter(item=>item.userData.activated).length;
+    showMessage(count<3?data.phase+' synchronized. Something just learned where you are.':'All three relays are live. Return to the receiver and invert the signal.',4.2);
+    if(count===3){enemyMode='CHASE';lastKnown.copy(camera.position);planPath(camera.position);pathClock=0;cue('sting',.48);}
+    updateHud();return;
+  }
+  if(data.targetType==='receiver'){
+    const count=signalStations.filter(item=>item.userData.activated).length;
+    if(count<3){showMessage('INVERSION DENIED. Echo relays active: '+count+'/3. The system will not accept a partial signal.',3.4);cue('click',.08);return;}
+    beginFinale();return;
+  }
+  if(data.targetType==='note'){showMessage('THE LAST HANDWRITTEN NOTE: “It is not inside the house. The house is how it gets inside you.”',5.5);cue('pickup',.1);}
 }
 function findInteraction() {
   nearestInteractable=null;$('interaction-prompt').classList.add('hidden');$('crosshair').classList.remove('active');
@@ -435,13 +572,12 @@ function findInteraction() {
   for(const hit of hits){
     let root=hit.object;
     while(root&&root!==scene&&root.userData?.targetType===undefined)root=root.parent;
-    if(root&&root.userData?.targetType!==undefined){nearestInteractable=root;$('interaction-text').textContent=root.userData.targetType==='evidence'?'Play '+root.userData.name:root.userData.targetType==='note'?'Read nurse’s note':(exitOpen?'Exit through the door':(evidenceItems.every(item=>item.userData.collected)?'Activate security override':'Inspect security lock'));$('interaction-prompt').classList.remove('hidden');$('crosshair').classList.add('active');break;}
+    if(root&&root.userData?.targetType!==undefined){nearestInteractable=root;$('interaction-text').textContent=root.userData.targetType==='station'?(root.userData.activated?'Inspect '+root.userData.name:'Synchronize '+root.userData.name):root.userData.targetType==='receiver'?'Invert the signal':root.userData.targetType==='note'?'Read the note':'Interact';$('interaction-prompt').classList.remove('hidden');$('crosshair').classList.add('active');break;}
   }
   if(!nearestInteractable){
     const pos=camera.position;
-    const close=evidenceItems.find(item=>item.visible&&item.position.distanceTo(pos)<1.65);
-    if(close){nearestInteractable=close;$('interaction-text').textContent='Play '+close.userData.name;$('interaction-prompt').classList.remove('hidden');}
-    else if(exitDoor.position.distanceTo(pos)<3.3){nearestInteractable=exitDoor;$('interaction-text').textContent=exitOpen?'Exit through the door':(evidenceItems.every(item=>item.userData.collected)?'Activate security override':'Inspect security lock');$('interaction-prompt').classList.remove('hidden');}
+    const close=interactive.find(item=>item.visible&&item.position.distanceTo(pos)<1.9&&['station','receiver','note'].includes(item.userData?.targetType));
+    if(close){nearestInteractable=close;$('interaction-text').textContent=close.userData.targetType==='station'?(close.userData.activated?'Inspect '+close.userData.name:'Synchronize '+close.userData.name):close.userData.targetType==='receiver'?'Invert the signal':'Read the note';$('interaction-prompt').classList.remove('hidden');}
   }
 }
 function handleInput(dt) {
@@ -553,7 +689,7 @@ function updateApparition(dt) {
   }
 }
 function updateEvidenceMotion() {
-  for (const item of evidenceItems) {
+  for (const item of signalStations) {
     if (!item.visible || item.userData.collected) continue;
     item.position.y = item.userData.homeY + Math.sin(elapsed * 1.7 + item.userData.phase) * .035;
     item.rotation.y = Math.sin(elapsed * .55 + item.userData.phase) * .12;
@@ -562,11 +698,31 @@ function updateEvidenceMotion() {
 function flicker(dt) {
   for(const lamp of lamps){lamp.clock+=dt;const broken=Math.sin(lamp.clock*2.7)>.94||Math.sin(lamp.clock*1.4)<-.97;lamp.light.intensity=broken?.08:lamp.base*(.82+Math.sin(lamp.clock*1.8)*.12);lamp.tube.material.emissiveIntensity=broken?.06:.55+lamp.base*.45;}
 }
+function beginFinale() {
+  if(finaleActive||state!=='playing')return;
+  finaleActive=true;finaleClock=0;
+  receiverConsole.userData.screenMaterial.emissiveIntensity=2.4;
+  receiverConsole.userData.buttonMaterial.emissiveIntensity=2.5;
+  receiverConsole.userData.glow.intensity=2;
+  enemyMode='CHASE';setThreat(1);cue('sting',.9);
+  showMessage('SIGNAL INVERTED. Do not turn around. Something is opening your front door.',5.5);
+  loadFinalHouse();
+}
 function updateDoor(dt) {
-  if(exitOpen){exitPivot.rotation.y=THREE.MathUtils.damp(exitPivot.rotation.y,Math.PI*.47,1.4,dt);const p=camera.position;if(p.z<EXIT_Z-2&&Math.abs(p.x)<2.9)endRun(true);}
+  if(!finaleActive)return;
+  finaleClock+=dt;
+  if(houseMixer)houseMixer.update(dt);
+  if(finaleClock>6.5)endRun(true);
 }
 async function initialise() {
-  $('loading-screen').classList.remove('hidden');setupRenderer();await RAPIER.init();setupPhysics();navGraph=buildNavigationGraph();drawHospital();buildEvidence();await loadOptionalAssets();$('loading-screen').classList.add('hidden');
+  $('loading-screen').classList.remove('hidden');
+  setupRenderer();await RAPIER.init();setupPhysics();
+  backroomLoaded=await loadBackroomEnvironment();
+  navGraph=buildNavigationGraph();
+  if(backroomLoaded)drawBackroomLighting();else drawHospital();
+  buildSignalStations();buildReceiverConsole();
+  await loadOptionalAssets();
+  $('loading-screen').classList.add('hidden');
 }
 $('start-button').addEventListener('click',()=>startRun());
 $('resume-button').addEventListener('click',()=>resumeRun());
@@ -592,11 +748,14 @@ if (import.meta.env.DEV || new URLSearchParams(window.location.search).has('smok
     get monsterAsset() { return enemyAssetName; },
     get monsterHasAnimation() { return Boolean(enemyMixer); },
     get apparitionVisible() { return Boolean(apparitionGroup?.visible); },
+    get backroomLoaded() { return backroomLoaded; },
+    get finaleActive() { return finaleActive; },
+    get relayCount() { return signalStations.filter(item=>item.userData.activated).length; },
   }});
 }
 function animate() {
   requestAnimationFrame(animate);frameCount++;const dt=Math.min(clock.getDelta(),.1);
-  if(state==='playing'){elapsed+=dt;handleInput(dt);world.timestep=dt;world.step();updateEnemy(dt);updateApparition(dt);updateEvidenceMotion();flicker(dt);updateDoor(dt);if(audioReady&&audioContext?.state==='suspended')audioContext.resume().catch(()=>{});}
+  if(state==='playing'){elapsed+=dt;if(!finaleActive)handleInput(dt);world.timestep=dt;world.step();if(!finaleActive)updateEnemy(dt);updateApparition(dt);updateEvidenceMotion();flicker(dt);updateDoor(dt);if(audioReady&&audioContext?.state==='suspended')audioContext.resume().catch(()=>{});}
   if(composer)composer.render(dt);else if(renderer&&scene&&camera)renderer.render(scene,camera);
 }
 animate();
