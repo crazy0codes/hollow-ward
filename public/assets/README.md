@@ -1,8 +1,10 @@
-# Runtime-fetched assets
+# Runtime assets
 
-`npm run dev` and `npm run build` attempt to fetch licensed GLB assets here using `scripts/fetch-assets.mjs`.
+The build script fetches the pinned CC0 RobotExpressive fallback when network access is available. The optional corridor tile may fail to download and is not required.
 
-- `RobotExpressive.glb`: CC0 1.0 animated rig from the Three.js examples repository, pinned to a source commit.
-- `corridor-floor-tile.glb`: CC0 1.0 hospital corridor floor tile from 3DAssets.dev.
+For the current Hollow Ward model update, place these user-supplied files in this directory:
 
-Downloads are verified as binary glTF. The stalker uses a non-box humanoid procedural fallback when its GLB is unavailable; the tile is optional. See `CREDITS.md` for source and licence records.
+- `the_human_deer.glb` — primary animated hunter (contains one 6.25-second clip).
+- `Meshy_AI_Character_output.glb` — secondary rigged apparition (no embedded clips; animated procedurally by the game).
+
+The application will try the deer, then Meshy, then RobotExpressive, then a primitive hunter fallback. The GLB binaries themselves are supplied separately and are not checked into this repository yet. Keep their filenames exactly as shown for the loader paths to match.
