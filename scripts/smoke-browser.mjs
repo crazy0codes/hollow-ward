@@ -48,7 +48,7 @@ try {
   const before = await page.evaluate(() => window.__HOLLOW_WARD__.playerPosition);
   await page.keyboard.down('w');
   await page.waitForTimeout(1200);
-  const forwardSample = await page.evaluate(() => ({ pos: window.__HOLLOW_WARD__.playerPosition, keys: window.__HOLLOW_WARD__.inputKeys, desired: window.__HOLLOW_WARD__.desiredMovement, actual: window.__HOLLOW_WARD__.actualMovement, locked: window.__HOLLOW_WARD__.pointerLocked, facing: window.__HOLLOW_WARD__.facing, collisions: window.__HOLLOW_WARD__.collisions }));
+  const forwardSample = await page.evaluate(() => ({ state: window.__HOLLOW_WARD__.state, pos: window.__HOLLOW_WARD__.playerPosition, keys: window.__HOLLOW_WARD__.inputKeys, desired: window.__HOLLOW_WARD__.desiredMovement, actual: window.__HOLLOW_WARD__.actualMovement, locked: window.__HOLLOW_WARD__.pointerLocked, facing: window.__HOLLOW_WARD__.facing, collisions: window.__HOLLOW_WARD__.collisions }));
   await page.keyboard.up('w');
   await page.waitForTimeout(150);
   const afterForward = await page.evaluate(() => window.__HOLLOW_WARD__.playerPosition);
