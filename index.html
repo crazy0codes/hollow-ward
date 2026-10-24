@@ -21,7 +21,7 @@
           <p>Three echo relays are keeping the room in phase. Synchronizing them will draw the thing closer. Reach the receiver, invert the signal, and learn why it already knows your home.</p>
         </div>
         <button id="start-button" class="primary-button">ENTER THE BACKROOM <span>↗</span></button>
-        <div class="menu-footer">WASD MOVE <i>•</i> MOUSE LOOK <i>•</i> SHIFT RUN <i>•</i> F FLASHLIGHT <i>•</i> E INTERACT</div>
+        <div class="menu-footer">WASD MOVE <i>•</i> MOUSE LOOK <i>•</i> SHIFT SPRINT <i>•</i> F FLASHLIGHT <i>•</i> E INTERACT / HIDE</div>
       </section>
       <section id="pause-screen" class="screen hidden">
         <div class="eyebrow">SIGNAL INTERRUPTED</div>
@@ -46,6 +46,12 @@
         <div id="message" class="message hidden"></div>
         <div id="threat-indicator" class="threat-indicator"><span></span> YOU ARE NOT ALONE</div>
         <div class="hud-bottom"><span id="location-label">ST. AGNES / RECOVERY WING</span><span>F FLASHLIGHT <i>•</i> E INTERACT <i>•</i> ESC PAUSE</span></div>
+      </div>
+      <div id="hide-overlay" class="hide-overlay hidden" aria-live="polite">
+        <div class="hide-kicker">EMERGENCY STORAGE</div>
+        <h2>STAY<br />QUIET.</h2>
+        <p>The footsteps are searching the corridor.</p>
+        <div class="hide-instruction"><kbd>E</kbd> LEAVE LOCKER</div>
       </div>
       <div id="loading-screen" class="screen hidden"><div class="loading-mark">HW</div><p>OPENING THE WARD</p><div class="loading-bar"><span></span></div></div>
     </div>
