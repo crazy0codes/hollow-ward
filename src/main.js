@@ -579,6 +579,7 @@ if (import.meta.env.DEV || new URLSearchParams(window.location.search).has('smok
   Object.defineProperty(window, '__HOLLOW_WARD__', { configurable: true, value: {
     get ready() { return Boolean(scene && world && controls && kcc && enemyGroup); },
     get frameCount() { return frameCount; },
+    advanceForTest(frames = 60) { const count = Math.max(1, Math.min(300, Math.floor(frames))); const dt = 1 / 60; for (let i = 0; i < count; i++) { world.timestep = dt; handleInput(dt); world.step(); } return this.playerPosition; },
     get state() { return state; },
     get error() { return initializationError; },
     get playerPosition() { if (!playerBody) return null; const p = playerBody.translation(); return { x: p.x, y: p.y, z: p.z }; },
