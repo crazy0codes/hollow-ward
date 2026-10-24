@@ -514,7 +514,7 @@ function updateApparition(dt) {
   if (!apparitionActive) {
     if (elapsed < nextApparitionAt || enemyMode === 'CHASE') return;
     if (enemyGroup && enemyGroup.position.distanceTo(player) < 8) {
-      nextApparitionAt += 2;
+      nextApparitionAt = elapsed + 3.5;
       return;
     }
     const forward = new THREE.Vector3();
