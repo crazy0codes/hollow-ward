@@ -45,17 +45,14 @@ try {
   await page.bringToFront();
   await page.locator('#start-button').click();
   await page.waitForFunction(() => window.__HOLLOW_WARD__?.state === 'playing', null, { timeout: 5000 });
-  // Pointer lock is asynchronous in Chromium; begin movement checks only after it is active.
+  // Pointer lock is asynchronous in Chromium; wait for it, then step the same
+  // Rapier/controller update deterministically under software-rendered CI.
   await page.waitForFunction(() => window.__HOLLOW_WARD__?.pointerLocked === true, null, { timeout: 5000 });
-  await page.waitForFunction(() => window.__HOLLOW_WARD__?.frameCount > 30, null, { timeout: 5000 });
-  await page.waitForTimeout(150);
   const before = await page.evaluate(() => window.__HOLLOW_WARD__.playerPosition);
   await page.keyboard.down('w');
-  await page.waitForFunction(() => Math.abs(window.__HOLLOW_WARD__?.desiredMovement?.z || 0) > 0.001, null, { timeout: 5000 });
-  await page.waitForTimeout(1000);
+  await page.evaluate(() => window.__HOLLOW_WARD__.advanceForTest(72));
   const forwardSample = await page.evaluate(() => ({ state: window.__HOLLOW_WARD__.state, frames: window.__HOLLOW_WARD__.frameCount, pos: window.__HOLLOW_WARD__.playerPosition, keys: window.__HOLLOW_WARD__.inputKeys, desired: window.__HOLLOW_WARD__.desiredMovement, actual: window.__HOLLOW_WARD__.actualMovement, locked: window.__HOLLOW_WARD__.pointerLocked, facing: window.__HOLLOW_WARD__.facing, collisions: window.__HOLLOW_WARD__.collisions }));
   await page.keyboard.up('w');
-  await page.waitForTimeout(150);
   const afterForward = await page.evaluate(() => window.__HOLLOW_WARD__.playerPosition);
   const forwardDistance = Math.hypot(afterForward.x - before.x, afterForward.z - before.z);
   if (forwardDistance < 0.5) {
@@ -63,7 +60,7 @@ try {
   }
 
   await page.keyboard.down('d');
-  await page.waitForTimeout(900);
+  await page.evaluate(() => window.__HOLLOW_WARD__.advanceForTest(54));
   const rightSample = await page.evaluate(() => ({ pos: window.__HOLLOW_WARD__.playerPosition, keys: window.__HOLLOW_WARD__.inputKeys, desired: window.__HOLLOW_WARD__.desiredMovement, actual: window.__HOLLOW_WARD__.actualMovement, locked: window.__HOLLOW_WARD__.pointerLocked, facing: window.__HOLLOW_WARD__.facing, collisions: window.__HOLLOW_WARD__.collisions }));
   await page.keyboard.up('d');
   const afterRight = await page.evaluate(() => window.__HOLLOW_WARD__.playerPosition);
