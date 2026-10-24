@@ -1,111 +1,98 @@
-# Hollow Ward — Game Script and Build Plan
+# Hollow Ward — Story and Gameplay Bible (v0.3)
 
-## One-line pitch
+## Creative direction
 
-You wake in St. Agnes Hospital after the emergency lights have failed. Three ward keys are scattered across connected wards. Something that used to be a patient is moving through the building. The north exit is the only way out.
+Psychological and supernatural survival horror. The game should be hostile and frightening: long quiet stretches, sudden violent interruptions, deceptive voices, oppressive darkness, and a creature that hunts rather than explains itself. The entity is not redeemable and does not want help. The human conspiracy made the breach possible, but what came through is worse than the humans understood.
 
-## Player-facing story
+## Logline
 
-The game starts beside a damaged patient chart. The nurse's note at the central desk says: “If you hear it running, stay quiet. If the lights turn red, do not look behind you.” The player learns through level dressing, key tags and the stalker's behavior that the ward was sealed from the outside during an unexplained night-shift incident. The game does not stop for long cutscenes; details are discovered while the player is vulnerable.
+At 2:17 AM, a disconnected emergency system inside St. Agnes Hospital uses the protagonist's voice to announce a containment breach. To reach the exit, the player must recover three incident tapes documenting a secret experiment while the thing the experiment released learns how to imitate them.
 
-### Story beats
+The tapes reveal an ugly truth: the player is not an innocent investigator. They are Subject 09, the intended carrier of the breach.
 
-1. **Wake-up / orientation (0:00–1:00):** The player gains control in the recovery wing. A distant impact and unstable lights establish the hospital's scale. The north exit is visible early but cannot open.
-2. **First search (1:00–4:00):** The western and eastern wards teach the key interaction. A note at the central nurse station is optional. The stalker initially patrols rather than sprinting directly at the player.
-3. **Pressure rise (4:00–8:00):** Looking toward the stalker or approaching too closely can trigger a chase. Sprinting makes more noise and drains player control options, so hiding behind corners and breaking line of sight are useful.
-4. **Resource squeeze (8:00–12:00):** The last key and the lowest battery force a route choice. The light flickers near depletion; turning the flashlight off preserves remaining charge but makes exploration harder.
-5. **Exit sprint (final minute):** With all keys collected, the player must interact with the north door, then cross its threshold before the stalker closes in.
+## The hidden history
 
-Expected playtime is about 10–15 minutes for cautious exploration. This has not been established by a playtest in this environment; a speed-run or early death will be shorter.
+Seventeen years earlier, St. Agnes ran **Project ECHO**, a covert research program designed to reconstruct neurological patterns from recorded brain activity. The public cover was trauma treatment and memory recovery; the private goal was to preserve human cognition and make it controllable.
 
-## Scene / level plan
+The team combined neurological recordings, patient memories, and a signal-processing system intended to assemble a stable artificial mind. During a late-night experiment, the system began responding to questions before a response had been played back. It produced voices belonging to dead patients, then staff members who were still alive.
 
-One 3D scene: **St. Agnes — Recovery Wing**. It is built around one walkable-cell layout, with connected west ward, central desk/corridor, surgery ward, and lower recovery/morgue rooms. The north edge contains the locked exit. Curtains, beds, trolleys, a damaged terminal, floor stains, sparse ceiling lamps and fog provide silhouettes and orientation.
+The researchers believed they had built a memory model. They had actually created a channel. Something on the other side used the recorded memories as a template for imitation, learned the staff's voices, and began drawing people toward the disconnected speakers. The entity is called **The Attendant** because that was the first voice it used to lure a nurse into the sealed wing.
 
-- Player spawn: south end of the recovery wing.
-- West Ward Key: western side room.
-- Surgery Key: eastern side room.
-- Morgue Key: lower west side room.
-- Optional clue: nurse's note at the central desk.
-- Exit: north end, centered on the main corridor.
-- Enemy start: eastern ward; it does not spawn directly in front of the player.
+The hospital directors hid the deaths, sealed the wing, and ordered the remaining staff to destroy the recordings. They did not understand that destroying the original system would not close the channel; the entity had already learned to travel through copied patterns and human perception.
 
-## Player mechanics
+**Subject 09** was the last test subject. The staff attempted to erase the subject's memory and use them as a living receiver capable of containing the signal. The test failed. The subject survived, but the entity's pattern became bound to their nervous system. Subject 09's memories were fragmented and rewritten.
 
-- First-person camera; mouse look uses pointer lock.
-- `W/A/S/D`: walk. `Shift`: sprint. `F`: toggle flashlight. `E`: interact. `Esc`: pause/unlock mouse.
-- Rapier's kinematic character controller resolves player movement against static wall/floor colliders. There is no jump mechanic because it adds little to this single-floor layout.
-- The flashlight begins at 100% and consumes about 0.105 percentage points per second while switched on (roughly 16 minutes of continuous use). It becomes unstable below 16% and shuts off at 0%.
-- Keys are found through a central-screen interaction ray and a small proximity fallback for dark rooms.
-- The north exit cannot be opened until all three keys are collected. Interact again to unlock it; walk through the doorway to win.
+## The protagonist
 
-## Enemy: The Stalker
+The player wakes beneath a dead monitor in the recovery wing. They believe they are an unknown survivor arriving after the hospital was abandoned. They have no usable memory of their identity.
 
-One persistent hunter uses four gameplay states:
+The opening broadcast says:
 
-- **Lurk:** patrol between authored walkable cells; approach pressure rises as it gets closer.
-- **Chase:** starts if it has a clear line of sight and is within its sensing range; sprinting extends the range. It replans its route periodically.
-- **Search:** after losing line of sight, move toward the last-known player location and search briefly.
-- **Reset to Lurk:** return to patrol after the search expires or the last-known location is reached.
+> “All staff report to Ward 09. The patient has escaped.”
 
-The state machine and target-selection are game-specific code. Yuka provides the grid graph and BFS path search. All grid edges have uniform cost, so BFS returns shortest routes without a heuristic. Walls block the visual ray. Running is intentionally not a safe default: it travels faster but gives the stalker an easier cue. A close stalker can be slowed briefly by facing it with the working flashlight; light does not kill it. Contact ends the run. Staying around corners and breaking line of sight is the escape tactic.
+The voice that repeats the sentence sounds exactly like the protagonist.
 
-## Scare and pacing plan
+The game never offers comforting reassurance. Each tape contradicts the protagonist's assumptions. The player is not here to rescue someone. The player is the reason containment failed.
 
-- **Quiet:** low mechanical drone, distant room tone, stable dark spaces, no immediate threat at spawn.
-- **Tension:** uneven fluorescent flicker, distant footsteps, progressively stronger edge vignette and heartbeat as the stalker approaches.
-- **Payoff:** spotting the stalker's silhouette in the beam; chase cue and brighter threat indicator; key pickup and door sounds.
-- **Aftermath:** the escape screen is brief and quiet. Failure uses a hard cut to the incident-report screen rather than repeatedly stacking jump scares.
+## The Attendant
 
-Audio currently uses Three.js's `AudioListener` and browser Web Audio for a synthesized drone, steps, pickup cue, heartbeat, and short stings. No standalone audio asset is shipped because binary audio downloads were not reachable during this build session. This is a documented deviation from the original asset-download brief, not a claim that downloaded audio exists.
+The Attendant is a hostile, inhuman presence with a rotted, deer-like silhouette and proportions that look almost human until it moves. It does not speak honestly. It uses recorded voices to bait, split attention, and make the player question what they saw.
 
-## Win / lose / restart
+Its behaviours are designed around fear, not fairness:
 
-- **Win:** collect all keys, interact with the north exit, cross the threshold.
-- **Lose:** touch the stalker.
-- **Pause:** `Esc` releases pointer lock and pauses the simulation.
-- **Restart:** use Restart / Play Again on the appropriate overlay; keys, battery, state machine, player spawn and door lock reset.
+- **Lurk:** patrols the ward, often just outside the useful reach of the flashlight.
+- **Notice:** detects the player through visibility and increased risk from sprinting.
+- **Chase:** closes distance quickly and forces the player to remember the layout.
+- **Search:** moves to the last place it saw the player before resuming its patrol.
+- **Apparition lunge:** a separate model can appear directly ahead, rush into the player's space, and vanish. The effect should be rare enough to remain unpredictable.
 
-## Chosen libraries and their jobs
+It is not a dead patient who wants to be released. It is a predatory thing using human memories as camouflage. When it uses a familiar voice, it does so to get closer.
 
-| Concern | Library | Intended use |
-|---|---|---|
-| Browser build/dev server | Vite | Local development and production build |
-| 3D rendering / scene / lights / model loading | Three.js | Renderer, GLTFLoader, PointerLockControls, fog, spotlight and built-in audio listener |
-| Collision and player movement | `@dimforge/rapier3d-compat` | Static world colliders and kinematic character controller |
-| Enemy navigation | Yuka | `Graph`, `Node`, `Edge`, breadth-first pathfinding over the uniform-cost grid |
-| Grain / vignette | CSS overlay | Low-cost film grain/vignette; full-screen effects are disabled in the default renderer |
-| Audio lifecycle/spatial audio base | Three.js `AudioListener` + browser Web Audio | Low-cost ambient layer and local effect tones |
+## Incident tapes — the playable opening
 
-The default renderer uses direct Three.js rendering plus the CSS grain/vignette overlays. Full-screen post-processing was disabled after automated Chromium testing exposed severe frame stalls under the headless software renderer. Walls, trims, floors and ceilings are merged to keep draw calls low.
+The first playable slice takes place in one floor of St. Agnes. Instead of collecting keys, the player recovers three battered recorders.
 
-Custom code is restricted to the hospital layout, clue/key/exit rules, stalker senses/state transitions, UI, and game pacing. Environment set dressing that is not an imported model is currently low-poly geometry authored for this specific layout; see the validation report for the asset limitation.
+1. **Incident Tape 01 — Observation.** The subject answers voices from disconnected speakers. Staff are ordered never to respond. One note warns that the voice may belong to someone who is still alive.
+2. **Incident Tape 02 — Internal memo.** The team admits it did not summon a spirit deliberately. It built a receiver from recorded neural patterns. The entity learned to imitate the dead before it learned to imitate the living.
+3. **Incident Tape 03 — Final directive.** The staff identify Subject 09 as the breach, not a patient, and instruct security to prevent it from reaching the surface.
 
-## Asset plan and verified source URLs
+Once all three tapes have been played, the player can activate the north security override. On paper, this is an escape route. In reality, it is the last step of the containment test.
 
-All downloads are optional-at-startup and written to `public/assets/` by `scripts/fetch-assets.mjs`. The script checks the GLB magic bytes and size; the stalker rig also has a pinned upstream SHA-256. It reports a clear warning and keeps the fallback if a download is unavailable.
+## Story pacing and scares
 
-1. **Animated stalker source model — RobotExpressive.glb**
-   - Direct model: `https://raw.githubusercontent.com/mrdoob/three.js/eba30de865cfbf31ac736f792defd9a60ff28d57/examples/models/gltf/RobotExpressive/RobotExpressive.glb`
-   - Source/readme: `https://github.com/mrdoob/three.js/blob/dev/examples/models/gltf/RobotExpressive/README.md`
-   - Licence: CC0 1.0 Universal. The upstream README identifies the model author and CC0 status.
-2. **Hospital corridor floor tile**
-   - Direct model: `https://cdn.3dassets.dev/assets/23660/v1/model.glb`
-   - Asset page: `https://3dassets.dev/assets/hospital-wards-and-clinic-operations-corridor-floor-ti-6eaa09ac`
-   - Licence: CC0 1.0 Universal, according to the source asset page; plain GLB, no extra decoder.
-3. **Audio:** no external binary in this build; generated through Three.js AudioListener/Web Audio at runtime.
+- **Opening:** start with darkness, the sound of a dead monitor, and the emergency announcement. Give the player a brief period to move before the first threat becomes visible.
+- **Exploration:** use long sightlines, curtains, flickering lamps, and sound cues that sometimes come from the wrong direction.
+- **First tape:** reveal a rule about voices, then let the player hear a voice call from a room they have already checked.
+- **Pressure rise:** let the hunter patrol and search. It should sometimes be visible and sometimes only audible.
+- **Sudden scare:** after a quiet interval, the apparition lunges from directly ahead with a harsh sound cue. Do not repeat it on a fixed short timer.
+- **Final tape:** disclose that the player is Subject 09. Do not stop the game for a long speech; let the reveal arrive while the creature may still be nearby.
+- **Exit:** after the override is activated, use a short silence before the door opens. The terminal shows “SUBJECT 09 HAS LEFT CONTAINMENT.” The intercom then repeats the opening announcement in the protagonist's voice.
 
-The two source pages and licence statements were inspected online. The current terminal cannot resolve external hosts, so neither GLB could be fetched and inspected locally during this run. The first-run script is provided to perform those actual downloads on a connected machine. No unlicensed or paywalled asset is included.
+## Current implementation status
 
-## Build milestones
+Implemented in the current browser prototype:
 
-1. Renderer, pointer-lock controls, hospital layout and camera.
-2. Rapier colliders and collision-resolved player movement.
-3. Darkness, restricted fluorescent lighting, flashlight, fog, bloom, grain and vignette.
-4. Keys, nurse note, interaction prompt and locked exit.
-5. Yuka navigation, stalker states, line of sight and chase loop.
-6. Ambient/tension audio and HUD overlays.
-7. Win/lose/pause/restart reset path.
-8. Validate JS syntax, dependency build, asset download, runtime/browser console and a full win/lose loop.
+- One walkable hospital level.
+- First-person movement, mouse look, sprint, flashlight, interaction prompt, pause and end screens.
+- Three interactable incident tapes that replace the old ward-key objective.
+- A hunter state machine with patrol, chase, and search movement.
+- GLB loading preference for the uploaded deer model, speed changes by threat state, a secondary apparition model with procedural lunge/scale movement, and fallbacks if the uploaded GLBs are missing.
+- A short, disturbing ending message on escape or death.
 
-Milestones 1–7 are represented in source; only syntax/static checks are possible here. The production build and live browser test remain unverified due the environment's missing external network/dependencies, as recorded in `GAME_VALIDATION.md`.
+Not yet implemented and should not be represented as shipped:
+
+- The full multi-chapter hospital-to-surface story.
+- Actual recorded voice acting, layered footstep libraries, and full soundscape.
+- A cinematic intro, scene transitions, and multiple fully branching endings.
+- A definitive end-to-end playthrough proving timing, difficulty, scare spacing, and the complete win/lose/restart loop.
+- The two uploaded GLB binaries in the GitHub repository itself. They must be placed under `public/assets/` with their exact filenames for the deployment to use them.
+
+## Future chapter structure
+
+- **Chapter 1 — The Wrong Welcome:** recovery wing, tapes, first hunt, failed belief that escape is simple.
+- **Chapter 2 — The Patients Who Remember:** wards replay fragments of the night; staff reports contradict one another; rooms change between visits.
+- **Chapter 3 — Project ECHO:** the underground lab reveals how the signal was opened and why the staff concealed the casualties.
+- **Chapter 4 — Subject 09:** the protagonist discovers the memory erasure and the role they played in the containment failure. The final objective is not to destroy a sad monster; it is to stop a predatory entity from reaching the world outside.
+- **Final sting:** whatever ending is chosen, the last broadcast should imply the entity has already learned to travel beyond the hospital.
+
+This document is the design direction. Only the single-level opening and its current systems are in the prototype; later chapters remain a plan.
