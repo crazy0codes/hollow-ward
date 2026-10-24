@@ -46,7 +46,7 @@ Put these exact files in `public/assets/` to load the models supplied for this u
 - `the_human_deer.glb` — rigged horror creature with one embedded 6.25-second animation clip. It is preferred for the active hunter and the animation is sped up during a chase.
 - `Meshy_AI_Character_output.glb` — rigged model with no embedded animation clip. It is used for the sudden apparition, with procedural lunge/scale movement.
 
-The source code now looks for these file names first, but the uploaded GLB binaries have **not yet been committed into this GitHub repository**. Until they are present under `public/assets/`, the app uses its included fallback model and cannot display the custom deer/appartion models on the live site. Copy both files into that folder and commit them to enable the custom models in the deployment.
+The source code now looks for these file names first, but the uploaded GLB binaries have **not yet been committed into this GitHub repository**. Until they are present under `public/assets/`, the app uses its included fallback model and cannot display the custom deer/apparition models on the live site. Copy both files into that folder and commit them to enable the custom models in the deployment.
 
 ## Architecture
 
