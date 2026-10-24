@@ -36,14 +36,18 @@ const M = {
 let scene, camera, renderer, composer, controls, world, kcc, playerBody, playerCollider, navGraph;
 let flashlight, flashlightTarget, flashlightOn = true, battery = 100, exitDoor, exitPivot, exitCollider, exitOpen = false;
 let enemyGroup, enemyModel, enemyLight, enemyMixer, enemyClips = {}, enemyFallback = false, enemyProcedural = false, enemyAssetName = 'procedural hunter';
-let backroomLoaded = false, backroomGroup = null, houseGroup = null, houseMixer = null, finaleActive = false, finaleClock = 0, receiverConsole = null;
+let backroomLoaded = false, backroomGroup = null, backroomBounds = null, playerSpawn = null, enemySpawn = null, houseGroup = null, houseMixer = null, finaleActive = false, finaleClock = 0, receiverConsole = null;
 let apparitionGroup, apparitionModel, apparitionActive = false, apparitionClock = 0, nextApparitionAt = 32;
 let signalStations = [], interactive = [], wallVisuals = [], lamps = [], nearestInteractable = null, wallParts = [], trimParts = [];
 let state = 'menu', elapsed = 0, messageTimer = 0, threat = 0, verticalSpeed = 0, bob = 0, footstep = 0, initializationError = null, frameCount = 0;
 let lastDesired = { x: 0, y: 0, z: 0 }, lastActual = { x: 0, y: 0, z: 0 };
 let enemyMode = 'LURK', enemyPath = [], enemyPathIndex = 0, patrolTarget = null, pathClock = 0, searchClock = 0;
 let lastKnown = new THREE.Vector3(), audioContext, masterGain, audioReady = false, heartbeatClock = 0;
-const moveKeys = new Set(), clock = new THREE.Clock(), raycaster = new THREE.Raycaster();
+const moveKeys = new Set(), clock = new THREE.Clock(), raycaster = new THREE.Raycaster(), clearanceRaycaster = new THREE.Raycaster();
+const clearanceDirections = [
+  new THREE.Vector3(1,0,0), new THREE.Vector3(-1,0,0), new THREE.Vector3(0,0,1), new THREE.Vector3(0,0,-1),
+  new THREE.Vector3(1,0,1).normalize(), new THREE.Vector3(1,0,-1).normalize(), new THREE.Vector3(-1,0,1).normalize(), new THREE.Vector3(-1,0,-1).normalize(),
+];
 const forward = new THREE.Vector3(), right = new THREE.Vector3(), move = new THREE.Vector3(), direction = new THREE.Vector3();
 
 function cellPos(row, col) { return new THREE.Vector3((col - (COLS - 1) / 2) * CELL, 0, (row - (ROWS - 1) / 2) * CELL); }
@@ -165,7 +169,7 @@ function buildSignalStations() {
     { row:8, col:2, name:'LOWER ECHO RELAY', phase:'PHASE 03 // SUBJECT 09' },
   ];
   signalStations = spots.map((s,i) => {
-    const p = cellPos(s.row,s.col), group = new THREE.Group();
+    const p = findSafeEnvironmentPosition(cellPos(s.row,s.col), CELL), group = new THREE.Group();
     group.position.set(p.x,0,p.z);
     box(.56,.72,.56,M.darkWall,new THREE.Vector3(0,.36,0),group);
     box(.76,.12,.7,M.metal,new THREE.Vector3(0,.77,0),group);
@@ -187,7 +191,7 @@ function buildSignalStations() {
   return signalStations;
 }
 function buildReceiverConsole() {
-  const p = cellPos(5,5), group = new THREE.Group();
+  const p = findSafeEnvironmentPosition(cellPos(5,5), CELL), group = new THREE.Group();
   group.position.set(p.x,0,p.z);
   box(1.15,.82,.8,M.darkWall,new THREE.Vector3(0,.41,0),group);
   box(1.25,.12,.88,M.metal,new THREE.Vector3(0,.87,0),group);
@@ -224,7 +228,9 @@ async function loadBackroomEnvironment() {
     const scaledBounds=new THREE.Box3().setFromObject(backroomGroup);
     backroomGroup.position.x-= (scaledBounds.min.x+scaledBounds.max.x)/2;
     backroomGroup.position.z-= (scaledBounds.min.z+scaledBounds.max.z)/2;
-    backroomGroup.position.y-= scaledBounds.min.y;
+    // The authored floor is at local y=-0.34. The overall bounds include stray geometry down at -1.246;
+    // aligning that lowest vertex with y=0 lifts the actual floor into the player's capsule and blocks movement.
+    backroomGroup.position.y = 0.34;
     backroomGroup.updateMatrixWorld(true);
     backroomGroup.traverse(node=>{
       if(!node.isMesh)return;
@@ -251,12 +257,53 @@ async function loadBackroomEnvironment() {
       }
     });
     scene.add(backroomGroup);
+    backroomBounds = new THREE.Box3().setFromObject(backroomGroup);
     backroomLoaded=true;
     return true;
   } catch(error) {
     console.warn('Backroom GLB unavailable; using procedural fallback level.',error);
     backroomGroup=null;backroomLoaded=false;return false;
   }
+}
+function isBackroomPointClear(position, clearance = 0.56) {
+  if (!backroomLoaded || !backroomBounds || wallVisuals.length === 0) return true;
+  const margin = 0.9;
+  if (position.x < backroomBounds.min.x + margin || position.x > backroomBounds.max.x - margin ||
+      position.z < backroomBounds.min.z + margin || position.z > backroomBounds.max.z - margin) return false;
+  // The ray height is above the floor and below the ceiling, so this checks walls and furniture,
+  // not the floor plane that the character is supposed to stand on.
+  const origin = new THREE.Vector3(position.x, 0.95, position.z);
+  clearanceRaycaster.near = 0;
+  clearanceRaycaster.far = clearance;
+  for (const dir of clearanceDirections) {
+    clearanceRaycaster.set(origin, dir);
+    const hits = clearanceRaycaster.intersectObjects(wallVisuals, false);
+    if (hits.length && hits[0].distance < clearance) return false;
+  }
+  return true;
+}
+function findSafeEnvironmentPosition(preferred, maxRadius = CELL) {
+  const base = preferred.clone();
+  base.y = 0;
+  if (!backroomLoaded || isBackroomPointClear(base)) return base;
+  // Imported Backrooms geometry is not laid out like the procedural test grid. Find the nearest
+  // actual open spot before placing the player, relays, receiver, or hunter.
+  const step = 0.7;
+  const rings = Math.ceil(maxRadius / step);
+  const candidates = [];
+  for (let ix = -rings; ix <= rings; ix++) {
+    for (let iz = -rings; iz <= rings; iz++) {
+      const dx = ix * step, dz = iz * step, distanceSq = dx * dx + dz * dz;
+      if (distanceSq <= maxRadius * maxRadius) candidates.push({ dx, dz, distanceSq });
+    }
+  }
+  candidates.sort((a, b) => a.distanceSq - b.distanceSq);
+  for (const candidate of candidates) {
+    const point = new THREE.Vector3(base.x + candidate.dx, 0, base.z + candidate.dz);
+    if (isBackroomPointClear(point)) return point;
+  }
+  console.warn('No clear Backrooms position found near', base.toArray(), '- using its authored fallback position.');
+  return base;
 }
 function drawBackroomLighting() {
   for(const [r,c,power] of [[1,2,.72],[1,7,.48],[3,5,.42],[5,3,.58],[5,7,.38],[8,2,.46],[8,7,.5]])addLamp(r,c,power);
@@ -427,7 +474,7 @@ async function loadOptionalAssets() {
   enemyLight.position.set(0,1.5,.14);
   enemyGroup.add(enemyLight);
   scene.add(enemyGroup);
-  enemyGroup.position.copy(cellPos(2,8));
+  enemyGroup.position.copy(enemySpawn || cellPos(2,8));
   // Add the licensed CC0 tile as a small, optional dressing piece if its first-run download succeeded.
   try {
     const tileUrl = '/assets/corridor-floor-tile.glb';
@@ -525,8 +572,8 @@ function startRun() {
     station.userData.glow.intensity=.24;station.userData.ring.material=M.metal;
   }
   if(receiverConsole){receiverConsole.userData.screenMaterial.emissiveIntensity=.36;receiverConsole.userData.glow.intensity=.28;receiverConsole.userData.buttonMaterial.emissiveIntensity=.22;}
-  const start=cellPos(9,5);playerBody.setTranslation({x:start.x,y:.88,z:start.z},true);
-  enemyGroup.position.copy(cellPos(2,8));enemyPath=[];enemyPathIndex=0;patrolTarget=null;lastKnown.copy(start);
+  const start=(playerSpawn || cellPos(9,5)).clone();playerBody.setTranslation({x:start.x,y:.88,z:start.z},true);
+  enemyGroup.position.copy(enemySpawn || cellPos(2,8));enemyPath=[];enemyPathIndex=0;patrolTarget=null;lastKnown.copy(start);
   $('title-screen').classList.add('hidden');$('pause-screen').classList.add('hidden');$('end-screen').classList.add('hidden');$('hud').classList.remove('hidden');$('interaction-prompt').classList.add('hidden');
   updateHud();initAudio();controls.lock();showMessage('Do not escape. Break the broadcast before it learns your name.',4.5);
 }
@@ -721,6 +768,8 @@ async function initialise() {
   $('loading-screen').classList.remove('hidden');
   setupRenderer();await RAPIER.init();setupPhysics();
   backroomLoaded=await loadBackroomEnvironment();
+  playerSpawn=findSafeEnvironmentPosition(cellPos(9,5), CELL);
+  enemySpawn=findSafeEnvironmentPosition(cellPos(2,8), CELL);
   navGraph=buildNavigationGraph();
   if(backroomLoaded)drawBackroomLighting();else drawHospital();
   buildSignalStations();buildReceiverConsole();
@@ -738,7 +787,20 @@ if (import.meta.env.DEV || new URLSearchParams(window.location.search).has('smok
   Object.defineProperty(window, '__HOLLOW_WARD__', { configurable: true, value: {
     get ready() { return Boolean(scene && world && controls && kcc && enemyGroup); },
     get frameCount() { return frameCount; },
-    advanceForTest(frames = 60) { const dt = Math.max(1, Math.min(300, Math.floor(frames))) / 60; camera.getWorldDirection(forward); forward.y = 0; forward.normalize(); right.crossVectors(forward, camera.up).normalize(); move.set(0, 0, 0); move.addScaledVector(forward, Number(moveKeys.has('KeyW')) - Number(moveKeys.has('KeyS'))); move.addScaledVector(right, Number(moveKeys.has('KeyD')) - Number(moveKeys.has('KeyA'))); if (move.lengthSq() > 1) move.normalize(); const current = playerBody.translation(); const running = moveKeys.has('ShiftLeft') || moveKeys.has('ShiftRight'); const desired = { x: move.x * (running ? 5.25 : 3.05) * dt, y: 0, z: move.z * (running ? 5.25 : 3.05) * dt }; kcc.computeColliderMovement(playerCollider, desired); const actual = kcc.computedMovement(); lastDesired = { ...desired }; lastActual = { x: actual.x, y: actual.y, z: actual.z }; playerBody.setTranslation({ x: current.x + actual.x, y: Math.max(.88, current.y + actual.y), z: current.z + actual.z }, true); const t = playerBody.translation(); camera.position.set(t.x, t.y + .57, t.z); camera.updateMatrixWorld(); return this.playerPosition; },
+    stepForTest(frames = 60) {
+      const count = Math.max(1, Math.min(300, Math.floor(frames)));
+      const dt = 1 / 60;
+      for (let i = 0; i < count; i++) {
+        if (state !== 'playing') break;
+        handleInput(dt);
+        world.timestep = dt;
+        world.step();
+      }
+      const t = playerBody.translation();
+      camera.position.set(t.x, t.y + .57, t.z);
+      camera.updateMatrixWorld();
+      return this.playerPosition;
+    },
     get state() { return state; },
     get error() { return initializationError; },
     get playerPosition() { if (!playerBody) return null; const p = playerBody.translation(); return { x: p.x, y: p.y, z: p.z }; },
