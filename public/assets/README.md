@@ -1,10 +1,12 @@
 # Runtime assets
 
-The build script fetches the pinned CC0 RobotExpressive fallback when network access is available. The optional corridor tile may fail to download and is not required.
+The build script fetches the pinned CC0 RobotExpressive fallback when network access is available. The optional corridor tile is not required.
 
-For the current Hollow Ward model update, place these user-supplied files in this directory:
+Extract the user-supplied GLBs into this directory with exact filenames:
 
-- `the_human_deer.glb` — primary animated hunter (contains one 6.25-second clip).
-- `Meshy_AI_Character_output.glb` — secondary rigged apparition (no embedded clips; animated procedurally by the game).
+- psx_-_backroom.glb — primary environment.
+- modular_kit_horror_house_104_pieces.glb — false-home finale; includes a front-door animation.
+- the_human_deer.glb — main animated hunter.
+- Meshy_AI_Character_output.glb — secondary apparition, procedurally lunged by the code.
 
-The application will try the deer, then Meshy, then RobotExpressive, then a primitive hunter fallback. The GLB binaries themselves are supplied separately and are not checked into this repository yet. Keep their filenames exactly as shown for the loader paths to match.
+These binaries are provided separately in the asset ZIP; they are not committed in this Git tree yet. The source uses fallbacks if a model is unavailable.
